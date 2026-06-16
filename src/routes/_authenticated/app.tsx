@@ -512,13 +512,13 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
       <div className="flex items-center justify-between">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">Trend</div>
         <div className="inline-flex rounded-lg border p-0.5 bg-muted">
-          {(["7", "30", "180"] as const).map((r) => (
+          {(["7", "30", "all"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
               className={`px-3 py-1 text-xs rounded-md transition-colors ${range === r ? "bg-background shadow-sm" : "text-muted-foreground"}`}
             >
-              {r === "180" ? "6m" : `${r}d`}
+              {r === "all" ? "All" : `${r}d`}
             </button>
           ))}
         </div>
