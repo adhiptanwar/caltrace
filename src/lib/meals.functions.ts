@@ -62,3 +62,29 @@ export const deleteMeal = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+const UpdateInput = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  description: z.string().optional().default(""),
+  calories: z.number().int().nonnegative(),
+  protein_g: z.number().optional().default(0),
+  carbs_g: z.number().optional().default(0),
+  fat_g: z.number().optional().default(0),
+  items: z.array(z.any()).optional().default([]),
+});
+
+export const updateMeal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => UpdateInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error, data: row } = await context.supabase
+      .from("meals")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
