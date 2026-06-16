@@ -82,6 +82,15 @@ function AppPage() {
   const { dark, toggle } = useDarkMode();
   const [tab, setTab] = useState<TabKey>("today");
 
+  useEffect(() => {
+    document.documentElement.classList.add("app-scroll-locked");
+    document.body.classList.add("app-scroll-locked");
+    return () => {
+      document.documentElement.classList.remove("app-scroll-locked");
+      document.body.classList.remove("app-scroll-locked");
+    };
+  }, []);
+
   const mealsQ = useQuery({
     queryKey: ["meals"],
     queryFn: () => listMealsFn({ data: {} }) as Promise<Meal[]>,
@@ -149,7 +158,7 @@ function AppPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
+    <div className="fixed inset-0 h-[100dvh] w-full min-h-0 overscroll-none flex flex-col bg-background overflow-hidden touch-none">
       <header
         className="shrink-0 border-b bg-background/85 backdrop-blur z-30"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -168,7 +177,7 @@ function AppPage() {
       </header>
 
       <main
-        className="flex-1 overflow-hidden mx-auto w-full max-w-xl px-5 pt-4"
+        className="min-h-0 flex-1 overflow-hidden overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
