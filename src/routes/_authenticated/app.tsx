@@ -388,7 +388,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
 
   function openManual() {
     setPreviewUrl(null);
-    setDraft({ name: "", description: "", calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, items: [] });
+    setDraft({ name: "", description: "", calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, items: [], autoTotals: false });
     setOpen(true);
   }
 
