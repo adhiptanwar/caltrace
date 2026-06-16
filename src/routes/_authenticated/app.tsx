@@ -4,24 +4,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn as useServerFnTanstack } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeMealImage } from "@/lib/ai.functions";
-import { addMeal, listMeals, deleteMeal } from "@/lib/meals.functions";
+import { addMeal, listMeals, deleteMeal, updateMeal } from "@/lib/meals.functions";
 import { addWeight, listWeights, deleteWeight } from "@/lib/weights.functions";
 import { categoryFromDate, downscaleImage, type MealCategory } from "@/lib/meal-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid,
 } from "recharts";
-import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon } from "lucide-react";
+import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
   component: AppPage,
 });
+
+type MealItem = { name: string; portion?: string; quantity: number; calories: number; protein_g: number; carbs_g: number; fat_g: number };
 
 type Meal = {
   id: string;
@@ -48,9 +51,7 @@ function fmtShort(d: Date) { return d.toLocaleDateString(undefined, { month: "nu
 
 function useDarkMode() {
   const [dark, setDark] = useState(false);
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
+  useEffect(() => { setDark(document.documentElement.classList.contains("dark")); }, []);
   function toggle() {
     const next = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", next);
@@ -58,6 +59,19 @@ function useDarkMode() {
     setDark(next);
   }
   return { dark, toggle };
+}
+
+function normalizeItems(raw: any): MealItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((it: any) => ({
+    name: String(it?.name ?? "Item"),
+    portion: it?.portion ? String(it.portion) : undefined,
+    quantity: Number(it?.quantity ?? 1) || 1,
+    calories: Number(it?.calories ?? 0) || 0,
+    protein_g: Number(it?.protein_g ?? 0) || 0,
+    carbs_g: Number(it?.carbs_g ?? 0) || 0,
+    fat_g: Number(it?.fat_g ?? 0) || 0,
+  }));
 }
 
 function AppPage() {
@@ -82,7 +96,7 @@ function AppPage() {
     navigate({ to: "/auth" });
   }
 
-  // Swipe to switch tabs (with visible drag animation)
+  // Swipe to switch tabs
   const touch = useRef<{ x: number; y: number; t: number; locked: boolean | null } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [animating, setAnimating] = useState(false);
@@ -135,26 +149,18 @@ function AppPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="h-[100dvh] flex flex-col bg-background overflow-hidden">
       <header
-        className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur"
+        className="shrink-0 border-b bg-background/85 backdrop-blur z-30"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="mx-auto max-w-xl px-5 h-14 flex items-center justify-between">
           <h1 className="text-base font-semibold tracking-tight">Trace</h1>
           <div className="flex items-center gap-1">
-            <button
-              onClick={toggle}
-              aria-label="Toggle theme"
-              className="text-muted-foreground hover:text-foreground transition-colors p-2 -mr-1"
-            >
+            <button onClick={toggle} aria-label="Toggle theme" className="text-muted-foreground hover:text-foreground transition-colors p-2 -mr-1">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <button
-              onClick={signOut}
-              aria-label="Sign out"
-              className="text-muted-foreground hover:text-foreground transition-colors p-2"
-            >
+            <button onClick={signOut} aria-label="Sign out" className="text-muted-foreground hover:text-foreground transition-colors p-2">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
@@ -162,9 +168,9 @@ function AppPage() {
       </header>
 
       <main
-        className="mx-auto max-w-xl px-5 pt-4"
+        className="flex-1 overflow-hidden mx-auto w-full max-w-xl px-5 pt-4"
         style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom) + 7rem)",
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
           transition: animating ? "transform 180ms ease-out" : "none",
           willChange: "transform",
@@ -176,7 +182,7 @@ function AppPage() {
         {tab === "today" && (
           <TodayView meals={mealsQ.data ?? []} loading={mealsQ.isLoading} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />
         )}
-        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} />}
+        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />}
         {tab === "weight" && (
           <WeightView weights={weightsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })} />
         )}
@@ -210,10 +216,27 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
   );
 }
 
+function ViewMoreButton({ label, count, onClick }: { label: string; count?: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-sm font-medium hover:bg-accent transition-colors"
+    >
+      <span className="flex items-center gap-2">
+        {label}
+        {typeof count === "number" && (
+          <span className="text-xs text-muted-foreground tabular-nums">({count})</span>
+        )}
+      </span>
+      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+    </button>
+  );
+}
 
 /* ---------------- Today ---------------- */
 
 function TodayView({ meals, loading, onChange }: { meals: Meal[]; loading: boolean; onChange: () => void }) {
+  const [open, setOpen] = useState(false);
   const today = startOfDay(new Date());
   const todays = meals.filter((m) => startOfDay(new Date(m.eaten_at)).getTime() === today.getTime());
   const total = todays.reduce((s, m) => s + (m.calories || 0), 0);
@@ -221,11 +244,8 @@ function TodayView({ meals, loading, onChange }: { meals: Meal[]; loading: boole
   const carbs = todays.reduce((s, m) => s + (Number(m.carbs_g) || 0), 0);
   const fat = todays.reduce((s, m) => s + (Number(m.fat_g) || 0), 0);
 
-  const grouped: Record<MealCategory, Meal[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
-  todays.forEach((m) => grouped[m.category as MealCategory]?.push(m));
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="rounded-2xl border bg-card p-6">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">Today</div>
         <div className="mt-1 flex items-baseline gap-2">
@@ -241,32 +261,52 @@ function TodayView({ meals, loading, onChange }: { meals: Meal[]; loading: boole
 
       <AddMealButton onAdded={onChange} />
 
-      {loading ? (
-        <div className="text-center text-sm text-muted-foreground py-8">Loading…</div>
-      ) : todays.length === 0 ? (
-        <div className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground">
-          No meals logged today.
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {(["breakfast", "lunch", "dinner", "snack"] as MealCategory[]).map((cat) =>
-            grouped[cat].length === 0 ? null : (
-              <div key={cat}>
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground capitalize">{cat}</div>
-                  <div className="text-xs text-muted-foreground tabular-nums">
-                    {grouped[cat].reduce((s, m) => s + m.calories, 0)} kcal
+      <ViewMoreButton
+        label={loading ? "Loading…" : "View today's meals"}
+        count={todays.length}
+        onClick={() => setOpen(true)}
+      />
+
+      <TodayMealsSheet open={open} onOpenChange={setOpen} todays={todays} onChange={onChange} />
+    </div>
+  );
+}
+
+function TodayMealsSheet({ open, onOpenChange, todays, onChange }: { open: boolean; onOpenChange: (o: boolean) => void; todays: Meal[]; onChange: () => void }) {
+  const grouped: Record<MealCategory, Meal[]> = { breakfast: [], lunch: [], dinner: [], snack: [] };
+  todays.forEach((m) => grouped[m.category as MealCategory]?.push(m));
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-[85dvh] p-0 flex flex-col rounded-t-2xl">
+        <SheetHeader className="p-5 pb-3 shrink-0">
+          <SheetTitle>Today's meals</SheetTitle>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-5">
+          {todays.length === 0 ? (
+            <div className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+              No meals logged today.
+            </div>
+          ) : (
+            (["breakfast", "lunch", "dinner", "snack"] as MealCategory[]).map((cat) =>
+              grouped[cat].length === 0 ? null : (
+                <div key={cat}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground capitalize">{cat}</div>
+                    <div className="text-xs text-muted-foreground tabular-nums">
+                      {grouped[cat].reduce((s, m) => s + m.calories, 0)} kcal
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {grouped[cat].map((m) => <MealRow key={m.id} meal={m} onChange={onChange} />)}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  {grouped[cat].map((m) => <MealRow key={m.id} meal={m} onChange={onChange} />)}
-                </div>
-              </div>
-            ),
+              ),
+            )
           )}
         </div>
-      )}
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -281,6 +321,7 @@ function MacroPill({ label, value }: { label: string; value: string }) {
 
 function MealRow({ meal, onChange }: { meal: Meal; onChange: () => void }) {
   const delFn = useServerFnTanstack(deleteMeal);
+  const [editing, setEditing] = useState(false);
   const del = useMutation({
     mutationFn: () => delFn({ data: { id: meal.id } }),
     onSuccess: () => { onChange(); toast.success("Removed"); },
@@ -288,24 +329,211 @@ function MealRow({ meal, onChange }: { meal: Meal; onChange: () => void }) {
   });
   const pending = del.isPending;
   return (
-    <div className={`flex items-start gap-3 rounded-xl border bg-card p-3 transition-opacity ${pending ? "opacity-50" : ""}`}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between gap-2">
-          <div className="font-medium truncate">{meal.name}</div>
-          <div className="text-sm tabular-nums shrink-0">{meal.calories} kcal</div>
-        </div>
-        {meal.description && <div className="text-xs text-muted-foreground truncate">{meal.description}</div>}
-        <div className="mt-1 text-[11px] text-muted-foreground">{fmtTime(new Date(meal.eaten_at))}</div>
+    <>
+      <div className={`flex items-start gap-3 rounded-xl border bg-card p-3 transition-opacity ${pending ? "opacity-50" : ""}`}>
+        <button
+          onClick={() => { if (!pending) setEditing(true); }}
+          disabled={pending}
+          className="flex-1 min-w-0 text-left"
+        >
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="font-medium truncate">{meal.name}</div>
+            <div className="text-sm tabular-nums shrink-0">{meal.calories} kcal</div>
+          </div>
+          {meal.description && <div className="text-xs text-muted-foreground truncate">{meal.description}</div>}
+          <div className="mt-1 text-[11px] text-muted-foreground">{fmtTime(new Date(meal.eaten_at))}</div>
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); if (!pending) del.mutate(); }}
+          disabled={pending}
+          aria-label="Delete meal"
+          className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors p-2 -m-1"
+        >
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+        </button>
       </div>
-      <button
-        onClick={() => { if (!pending) del.mutate(); }}
-        disabled={pending}
-        aria-label="Delete meal"
-        className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors p-2 -m-1"
-      >
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-      </button>
+      {editing && (
+        <EditMealDialog meal={meal} onClose={() => setEditing(false)} onSaved={onChange} />
+      )}
+    </>
+  );
+}
+
+/* ---------------- Meal Editor (shared) ---------------- */
+
+type Draft = {
+  name: string; description: string; calories: number;
+  protein_g: number; carbs_g: number; fat_g: number;
+  items: MealItem[];
+  autoTotals: boolean;
+};
+
+function MealEditorForm({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+  const recomputed = draft.items.reduce(
+    (acc, it) => {
+      acc.calories += it.calories * it.quantity;
+      acc.protein_g += it.protein_g * it.quantity;
+      acc.carbs_g += it.carbs_g * it.quantity;
+      acc.fat_g += it.fat_g * it.quantity;
+      return acc;
+    },
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+  );
+  const totals = draft.autoTotals && draft.items.length > 0
+    ? {
+        calories: Math.round(recomputed.calories),
+        protein_g: Math.round(recomputed.protein_g * 10) / 10,
+        carbs_g: Math.round(recomputed.carbs_g * 10) / 10,
+        fat_g: Math.round(recomputed.fat_g * 10) / 10,
+      }
+    : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
+
+  function updateItem(i: number, patch: Partial<MealItem>) {
+    setDraft({ ...draft, items: draft.items.map((it, idx) => idx === i ? { ...it, ...patch } : it) });
+  }
+  function removeItem(i: number) {
+    setDraft({ ...draft, items: draft.items.filter((_, idx) => idx !== i) });
+  }
+
+  return (
+    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+      <div>
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Name</Label>
+        <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+      </div>
+
+      {draft.items.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Items</Label>
+            <span className="text-[10px] text-muted-foreground">Totals auto-update</span>
+          </div>
+          <div className="rounded-lg border divide-y bg-card">
+            {draft.items.map((it, i) => (
+              <div key={i} className="p-2.5 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{it.name}</div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">
+                    {it.portion ?? "1 serving"} · {Math.round(it.calories * it.quantity)} kcal
+                  </div>
+                </div>
+                <div className="flex items-center rounded-full border">
+                  <button
+                    type="button"
+                    onClick={() => updateItem(i, { quantity: Math.max(0.5, Math.round((it.quantity - 0.5) * 2) / 2) })}
+                    className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
+                    aria-label="Decrease"
+                  >−</button>
+                  <span className="px-1.5 text-xs tabular-nums w-8 text-center">{it.quantity % 1 === 0 ? it.quantity : it.quantity.toFixed(1)}</span>
+                  <button
+                    type="button"
+                    onClick={() => updateItem(i, { quantity: Math.round((it.quantity + 0.5) * 2) / 2 })}
+                    className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
+                    aria-label="Increase"
+                  >+</button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeItem(i)}
+                  className="text-muted-foreground hover:text-destructive p-1.5"
+                  aria-label="Remove item"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-4 gap-2">
+        <Field label="kcal" value={totals.calories} onChange={(v) => setDraft({ ...draft, calories: v, autoTotals: false })} />
+        <Field label="P (g)" value={totals.protein_g} onChange={(v) => setDraft({ ...draft, protein_g: v, autoTotals: false })} />
+        <Field label="C (g)" value={totals.carbs_g} onChange={(v) => setDraft({ ...draft, carbs_g: v, autoTotals: false })} />
+        <Field label="F (g)" value={totals.fat_g} onChange={(v) => setDraft({ ...draft, fat_g: v, autoTotals: false })} />
+      </div>
     </div>
+  );
+}
+
+function computeTotals(draft: Draft) {
+  const useAuto = draft.autoTotals && draft.items.length > 0;
+  const totals = useAuto
+    ? draft.items.reduce(
+        (acc, it) => {
+          acc.calories += it.calories * it.quantity;
+          acc.protein_g += it.protein_g * it.quantity;
+          acc.carbs_g += it.carbs_g * it.quantity;
+          acc.fat_g += it.fat_g * it.quantity;
+          return acc;
+        },
+        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+      )
+    : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
+  return {
+    calories: Math.round(totals.calories),
+    protein_g: Math.round(totals.protein_g * 10) / 10,
+    carbs_g: Math.round(totals.carbs_g * 10) / 10,
+    fat_g: Math.round(totals.fat_g * 10) / 10,
+  };
+}
+
+/* ---------------- Edit Meal ---------------- */
+
+function EditMealDialog({ meal, onClose, onSaved }: { meal: Meal; onClose: () => void; onSaved: () => void }) {
+  const items = normalizeItems(meal.items);
+  const [draft, setDraft] = useState<Draft>({
+    name: meal.name,
+    description: meal.description ?? "",
+    calories: meal.calories,
+    protein_g: Number(meal.protein_g) || 0,
+    carbs_g: Number(meal.carbs_g) || 0,
+    fat_g: Number(meal.fat_g) || 0,
+    items,
+    autoTotals: items.length > 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const updateFn = useServerFnTanstack(updateMeal);
+
+  async function save() {
+    if (saving || !draft.name) return;
+    setSaving(true);
+    try {
+      const totals = computeTotals(draft);
+      await updateFn({
+        data: {
+          id: meal.id,
+          name: draft.name,
+          description: draft.description,
+          items: draft.items,
+          ...totals,
+        },
+      });
+      toast.success("Updated");
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!saving && !o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Edit meal</DialogTitle>
+        </DialogHeader>
+        <MealEditorForm draft={draft} setDraft={setDraft} />
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving || !draft.name}>
+            {saving ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>) : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -317,12 +545,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{
-    name: string; description: string; calories: number;
-    protein_g: number; carbs_g: number; fat_g: number;
-    items: { name: string; portion?: string; quantity: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }[];
-    autoTotals: boolean;
-  } | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   const analyzeFn = useServerFnTanstack(analyzeMealImage);
   const addFn = useServerFnTanstack(addMeal);
@@ -335,15 +558,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
       setPreviewUrl(dataUrl);
       setOpen(true);
       const result: any = await analyzeFn({ data: { imageDataUrl: dataUrl } });
-      const items = (result.items ?? []).map((it: any) => ({
-        name: String(it.name ?? "Item"),
-        portion: it.portion ? String(it.portion) : undefined,
-        quantity: Number(it.quantity ?? 1) || 1,
-        calories: Number(it.calories ?? 0) || 0,
-        protein_g: Number(it.protein_g ?? 0) || 0,
-        carbs_g: Number(it.carbs_g ?? 0) || 0,
-        fat_g: Number(it.fat_g ?? 0) || 0,
-      }));
+      const items = normalizeItems(result.items);
       setDraft({
         name: result.name,
         description: result.description,
@@ -367,32 +582,18 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
     setSaving(true);
     try {
       const now = new Date();
-      const useAuto = draft.autoTotals && draft.items.length > 0;
-      const totals = useAuto
-        ? draft.items.reduce(
-            (acc, it) => {
-              acc.calories += it.calories * it.quantity;
-              acc.protein_g += it.protein_g * it.quantity;
-              acc.carbs_g += it.carbs_g * it.quantity;
-              acc.fat_g += it.fat_g * it.quantity;
-              return acc;
-            },
-            { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-          )
-        : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
-      const payload = {
-        name: draft.name,
-        description: draft.description,
-        items: draft.items,
-        calories: Math.round(totals.calories),
-        protein_g: Math.round(totals.protein_g * 10) / 10,
-        carbs_g: Math.round(totals.carbs_g * 10) / 10,
-        fat_g: Math.round(totals.fat_g * 10) / 10,
-        category: categoryFromDate(now),
-        eaten_at: now.toISOString(),
-      };
-      await addFn({ data: payload });
-      toast.success(`Logged ${payload.calories} kcal`);
+      const totals = computeTotals(draft);
+      await addFn({
+        data: {
+          name: draft.name,
+          description: draft.description,
+          items: draft.items,
+          ...totals,
+          category: categoryFromDate(now),
+          eaten_at: now.toISOString(),
+        },
+      });
+      toast.success(`Logged ${totals.calories} kcal`);
       setOpen(false);
       setDraft(null);
       setPreviewUrl(null);
@@ -458,96 +659,11 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
             </div>
           )}
 
-          {draft && !analyzing && (() => {
-            const recomputed = draft.items.reduce(
-              (acc, it) => {
-                acc.calories += it.calories * it.quantity;
-                acc.protein_g += it.protein_g * it.quantity;
-                acc.carbs_g += it.carbs_g * it.quantity;
-                acc.fat_g += it.fat_g * it.quantity;
-                return acc;
-              },
-              { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-            );
-            const totals = draft.autoTotals && draft.items.length > 0
-              ? {
-                  calories: Math.round(recomputed.calories),
-                  protein_g: Math.round(recomputed.protein_g * 10) / 10,
-                  carbs_g: Math.round(recomputed.carbs_g * 10) / 10,
-                  fat_g: Math.round(recomputed.fat_g * 10) / 10,
-                }
-              : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
-            function updateItem(i: number, patch: Partial<NonNullable<typeof draft>["items"][number]>) {
-              const next = draft!.items.map((it, idx) => idx === i ? { ...it, ...patch } : it);
-              setDraft({ ...draft!, items: next });
-            }
-            function removeItem(i: number) {
-              setDraft({ ...draft!, items: draft!.items.filter((_, idx) => idx !== i) });
-            }
-            return (
-              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                <div>
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Name</Label>
-                  <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-                </div>
-
-                {draft.items.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Items</Label>
-                      <span className="text-[10px] text-muted-foreground">Totals auto-update</span>
-                    </div>
-                    <div className="rounded-lg border divide-y bg-card">
-                      {draft.items.map((it, i) => (
-                        <div key={i} className="p-2.5 flex items-center gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{it.name}</div>
-                            <div className="text-[11px] text-muted-foreground tabular-nums">
-                              {it.portion ?? "1 serving"} · {Math.round(it.calories * it.quantity)} kcal
-                            </div>
-                          </div>
-                          <div className="flex items-center rounded-full border">
-                            <button
-                              type="button"
-                              onClick={() => updateItem(i, { quantity: Math.max(0.5, Math.round((it.quantity - 0.5) * 2) / 2) })}
-                              className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
-                              aria-label="Decrease"
-                            >−</button>
-                            <span className="px-1.5 text-xs tabular-nums w-8 text-center">{it.quantity % 1 === 0 ? it.quantity : it.quantity.toFixed(1)}</span>
-                            <button
-                              type="button"
-                              onClick={() => updateItem(i, { quantity: Math.round((it.quantity + 0.5) * 2) / 2 })}
-                              className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
-                              aria-label="Increase"
-                            >+</button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(i)}
-                            className="text-muted-foreground hover:text-destructive p-1.5"
-                            aria-label="Remove item"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-4 gap-2">
-                  <Field label="kcal" value={totals.calories} onChange={(v) => setDraft({ ...draft, calories: v, autoTotals: false })} />
-                  <Field label="P (g)" value={totals.protein_g} onChange={(v) => setDraft({ ...draft, protein_g: v, autoTotals: false })} />
-                  <Field label="C (g)" value={totals.carbs_g} onChange={(v) => setDraft({ ...draft, carbs_g: v, autoTotals: false })} />
-                  <Field label="F (g)" value={totals.fat_g} onChange={(v) => setDraft({ ...draft, fat_g: v, autoTotals: false })} />
-                </div>
-              </div>
-            );
-          })()}
+          {draft && !analyzing && <MealEditorForm draft={draft} setDraft={setDraft} />}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={save} disabled={!draft || analyzing || saving || !draft.name}>
+            <Button onClick={save} disabled={!draft || analyzing || saving || !draft?.name}>
               {saving ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>) : "Save"}
             </Button>
           </DialogFooter>
@@ -574,8 +690,10 @@ function Field({ label, value, onChange }: { label: string; value: number; onCha
 
 /* ---------------- History ---------------- */
 
-function HistoryView({ meals }: { meals: Meal[] }) {
+function HistoryView({ meals, onChange }: { meals: Meal[]; onChange: () => void }) {
   const [range, setRange] = useState<"7" | "30" | "all">("7");
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [dayOpen, setDayOpen] = useState<string | null>(null);
 
   const data = useMemo(() => {
     const buckets: Record<string, number> = {};
@@ -607,8 +725,12 @@ function HistoryView({ meals }: { meals: Meal[] }) {
 
   const totalAvg = Math.round(data.reduce((s, d) => s + d.kcal, 0) / Math.max(1, data.length));
 
+  const dayMeals = dayOpen
+    ? meals.filter((m) => startOfDay(new Date(m.eaten_at)).toISOString() === dayOpen)
+    : [];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Avg / day</div>
@@ -644,17 +766,49 @@ function HistoryView({ meals }: { meals: Meal[] }) {
         </div>
       </div>
 
-      <div>
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Daily breakdown</div>
-        <div className="rounded-xl border divide-y bg-card">
-          {[...data].reverse().map((d) => (
-            <div key={d.iso} className="flex items-center justify-between px-4 py-3">
-              <div className="text-sm">{fmtDay(new Date(d.iso))}</div>
-              <div className="text-sm tabular-nums">{d.kcal} <span className="text-muted-foreground">kcal</span></div>
+      <ViewMoreButton label="Daily breakdown" count={data.length} onClick={() => setBreakdownOpen(true)} />
+
+      <Sheet open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+        <SheetContent side="bottom" className="h-[85dvh] p-0 flex flex-col rounded-t-2xl">
+          <SheetHeader className="p-5 pb-3 shrink-0">
+            <SheetTitle>Daily breakdown</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-5 pb-8">
+            <div className="rounded-xl border divide-y bg-card">
+              {[...data].reverse().map((d) => (
+                <button
+                  key={d.iso}
+                  onClick={() => setDayOpen(d.iso)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors"
+                >
+                  <div className="text-sm">{fmtDay(new Date(d.iso))}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm tabular-nums">{d.kcal} <span className="text-muted-foreground">kcal</span></div>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!dayOpen} onOpenChange={(o) => { if (!o) setDayOpen(null); }}>
+        <SheetContent side="bottom" className="h-[85dvh] p-0 flex flex-col rounded-t-2xl">
+          <SheetHeader className="p-5 pb-3 shrink-0">
+            <SheetTitle>{dayOpen ? fmtDay(new Date(dayOpen)) : ""}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-2">
+            {dayMeals.length === 0 ? (
+              <div className="rounded-2xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+                No meals logged.
+              </div>
+            ) : (
+              dayMeals.map((m) => <MealRow key={m.id} meal={m} onChange={onChange} />)
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -664,6 +818,7 @@ function HistoryView({ meals }: { meals: Meal[] }) {
 function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => void }) {
   const [input, setInput] = useState("");
   const [range, setRange] = useState<"7" | "30" | "all">("30");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const addFn = useServerFnTanstack(addWeight);
   const delFn = useServerFnTanstack(deleteWeight);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -702,15 +857,15 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
   const delta = latest && first ? (Number(latest.weight_kg) - Number(first.weight_kg)) : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border bg-card p-6">
+    <div className="space-y-4">
+      <div className="rounded-2xl border bg-card p-5">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">Latest</div>
         <div className="mt-1 flex items-baseline gap-2">
-          <div className="text-5xl font-semibold tabular-nums">{latest ? Number(latest.weight_kg).toFixed(1) : "—"}</div>
+          <div className="text-4xl font-semibold tabular-nums">{latest ? Number(latest.weight_kg).toFixed(1) : "—"}</div>
           <div className="text-sm text-muted-foreground">kg</div>
         </div>
         {latest && (
-          <div className="mt-2 text-xs text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground">
             {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)} kg ${range === "all" ? "all time" : `over ${range}d`}`}
           </div>
         )}
@@ -747,7 +902,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
       </div>
 
       <div className="rounded-2xl border bg-card p-4">
-        <div className="h-48">
+        <div className="h-40">
           {chartData.length === 0 ? (
             <div className="grid place-items-center h-full text-sm text-muted-foreground">No data yet</div>
           ) : (
@@ -766,39 +921,47 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
         </div>
       </div>
 
-      <div>
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">History</div>
-        {weights.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-            No entries yet.
+      <ViewMoreButton label="History" count={weights.length} onClick={() => setHistoryOpen(true)} />
+
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="bottom" className="h-[85dvh] p-0 flex flex-col rounded-t-2xl">
+          <SheetHeader className="p-5 pb-3 shrink-0">
+            <SheetTitle>Weight history</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-5 pb-8">
+            {weights.length === 0 ? (
+              <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
+                No entries yet.
+              </div>
+            ) : (
+              <div className="rounded-xl border divide-y bg-card">
+                {[...weights].reverse().map((w) => {
+                  const isDel = deletingId === w.id;
+                  return (
+                    <div key={w.id} className={`flex items-center justify-between px-4 py-3 transition-opacity ${isDel ? "opacity-50" : ""}`}>
+                      <div className="text-sm">
+                        {fmtDay(new Date(w.logged_at))}
+                        <span className="text-muted-foreground"> · {fmtTime(new Date(w.logged_at))}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm tabular-nums">{Number(w.weight_kg).toFixed(1)} <span className="text-muted-foreground">kg</span></div>
+                        <button
+                          onClick={() => { if (!isDel) del.mutate(w.id); }}
+                          disabled={isDel}
+                          aria-label="Delete entry"
+                          className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors p-2 -m-1"
+                        >
+                          {isDel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="rounded-xl border divide-y bg-card">
-            {[...weights].reverse().map((w) => {
-              const isDel = deletingId === w.id;
-              return (
-                <div key={w.id} className={`flex items-center justify-between px-4 py-3 transition-opacity ${isDel ? "opacity-50" : ""}`}>
-                  <div className="text-sm">
-                    {fmtDay(new Date(w.logged_at))}
-                    <span className="text-muted-foreground"> · {fmtTime(new Date(w.logged_at))}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm tabular-nums">{Number(w.weight_kg).toFixed(1)} <span className="text-muted-foreground">kg</span></div>
-                    <button
-                      onClick={() => { if (!isDel) del.mutate(w.id); }}
-                      disabled={isDel}
-                      aria-label="Delete entry"
-                      className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors p-2 -m-1"
-                    >
-                      {isDel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
