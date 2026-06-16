@@ -319,7 +319,9 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
     name: string; description: string; calories: number;
-    protein_g: number; carbs_g: number; fat_g: number; items: any[];
+    protein_g: number; carbs_g: number; fat_g: number;
+    items: { name: string; portion?: string; quantity: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }[];
+    autoTotals: boolean;
   } | null>(null);
 
   const analyzeFn = useServerFnTanstack(analyzeMealImage);
@@ -333,6 +335,15 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
       setPreviewUrl(dataUrl);
       setOpen(true);
       const result: any = await analyzeFn({ data: { imageDataUrl: dataUrl } });
+      const items = (result.items ?? []).map((it: any) => ({
+        name: String(it.name ?? "Item"),
+        portion: it.portion ? String(it.portion) : undefined,
+        quantity: Number(it.quantity ?? 1) || 1,
+        calories: Number(it.calories ?? 0) || 0,
+        protein_g: Number(it.protein_g ?? 0) || 0,
+        carbs_g: Number(it.carbs_g ?? 0) || 0,
+        fat_g: Number(it.fat_g ?? 0) || 0,
+      }));
       setDraft({
         name: result.name,
         description: result.description,
@@ -340,7 +351,8 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
         protein_g: result.protein_g,
         carbs_g: result.carbs_g,
         fat_g: result.fat_g,
-        items: result.items,
+        items,
+        autoTotals: items.length > 0,
       });
     } catch (e: any) {
       toast.error(e.message ?? "Analysis failed");
