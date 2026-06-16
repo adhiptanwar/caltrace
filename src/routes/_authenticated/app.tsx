@@ -459,7 +459,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
                   fat_g: Math.round(recomputed.fat_g * 10) / 10,
                 }
               : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
-            function updateItem(i: number, patch: Partial<typeof draft.items[number]>) {
+            function updateItem(i: number, patch: Partial<NonNullable<typeof draft>["items"][number]>) {
               const next = draft!.items.map((it, idx) => idx === i ? { ...it, ...patch } : it);
               setDraft({ ...draft!, items: next });
             }
