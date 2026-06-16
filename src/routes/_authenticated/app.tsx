@@ -445,7 +445,7 @@ function HistoryView({ meals }: { meals: Meal[] }) {
 
 function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => void }) {
   const [input, setInput] = useState("");
-  const [range, setRange] = useState<"7" | "30" | "180">("30");
+  const [range, setRange] = useState<"7" | "30" | "all">("30");
   const addFn = useServerFnTanstack(addWeight);
   const delFn = useServerFnTanstack(deleteWeight);
 
