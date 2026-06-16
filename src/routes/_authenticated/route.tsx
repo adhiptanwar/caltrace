@@ -8,10 +8,10 @@ export const Route = createFileRoute("/_authenticated")({
     let session = (await supabase.auth.getSession()).data.session;
     if (!session) {
       session = await new Promise((resolve) => {
-        const timer = setTimeout(() => { sub.subscription.unsubscribe(); resolve(null); }, 1500);
         const sub = supabase.auth.onAuthStateChange((_e, s) => {
-          if (s) { clearTimeout(timer); sub.subscription.unsubscribe(); resolve(s); }
+          if (s) { clearTimeout(timer); sub.data.subscription.unsubscribe(); resolve(s); }
         });
+        const timer = setTimeout(() => { sub.data.subscription.unsubscribe(); resolve(null); }, 1500);
       });
     }
     if (!session) throw redirect({ to: "/auth" });
