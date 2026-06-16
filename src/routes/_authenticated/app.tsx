@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn as useServerFnTanstack } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,6 @@ import { addWeight, listWeights, deleteWeight } from "@/lib/weights.functions";
 import { categoryFromDate, downscaleImage, type MealCategory } from "@/lib/meal-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -17,7 +16,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid,
 } from "recharts";
-import { Camera, Plus, Trash2, LogOut, Loader2, ImageIcon } from "lucide-react";
+import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
@@ -39,17 +38,35 @@ type Meal = {
 };
 
 type Weight = { id: string; weight_kg: number; logged_at: string };
+type TabKey = "today" | "history" | "weight";
+const TABS: TabKey[] = ["today", "history", "weight"];
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function fmtDay(d: Date) { return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
 function fmtTime(d: Date) { return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
 function fmtShort(d: Date) { return d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" }); }
 
+function useDarkMode() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
+  function toggle() {
+    const next = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch {}
+    setDark(next);
+  }
+  return { dark, toggle };
+}
+
 function AppPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const listMealsFn = useServerFnTanstack(listMeals);
   const listWeightsFn = useServerFnTanstack(listWeights);
+  const { dark, toggle } = useDarkMode();
+  const [tab, setTab] = useState<TabKey>("today");
 
   const mealsQ = useQuery({
     queryKey: ["meals"],
@@ -65,37 +82,94 @@ function AppPage() {
     navigate({ to: "/auth" });
   }
 
+  // Swipe to switch tabs
+  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touch.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touch.current;
+    touch.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const dt = Date.now() - start.t;
+    if (dt > 600) return;
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+    const idx = TABS.indexOf(tab);
+    if (dx < 0 && idx < TABS.length - 1) setTab(TABS[idx + 1]);
+    if (dx > 0 && idx > 0) setTab(TABS[idx - 1]);
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
+      <header
+        className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="mx-auto max-w-xl px-5 h-14 flex items-center justify-between">
           <h1 className="text-base font-semibold tracking-tight">Trace</h1>
-          <button onClick={signOut} className="text-muted-foreground hover:text-foreground transition-colors">
-            <LogOut className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggle}
+              aria-label="Toggle theme"
+              className="text-muted-foreground hover:text-foreground transition-colors p-2 -mr-1"
+            >
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={signOut}
+              aria-label="Sign out"
+              className="text-muted-foreground hover:text-foreground transition-colors p-2"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-5 pb-32 pt-4">
-        <Tabs defaultValue="today" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-muted rounded-lg">
-            <TabsTrigger value="today">Today</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="weight">Weight</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="today" className="mt-6">
-            <TodayView meals={mealsQ.data ?? []} loading={mealsQ.isLoading} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />
-          </TabsContent>
-          <TabsContent value="history" className="mt-6">
-            <HistoryView meals={mealsQ.data ?? []} />
-          </TabsContent>
-          <TabsContent value="weight" className="mt-6">
-            <WeightView weights={weightsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })} />
-          </TabsContent>
-        </Tabs>
+      <main
+        className="mx-auto max-w-xl px-5 pt-4"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)" }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {tab === "today" && (
+          <TodayView meals={mealsQ.data ?? []} loading={mealsQ.isLoading} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />
+        )}
+        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} />}
+        {tab === "weight" && (
+          <WeightView weights={weightsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })} />
+        )}
       </main>
+
+      <nav
+        className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto max-w-xl grid grid-cols-3">
+          <NavBtn label="Today" icon={<Home className="h-5 w-5" />} active={tab === "today"} onClick={() => setTab("today")} />
+          <NavBtn label="History" icon={<BarChart3 className="h-5 w-5" />} active={tab === "history"} onClick={() => setTab("history")} />
+          <NavBtn label="Weight" icon={<Scale className="h-5 w-5" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+        </div>
+      </nav>
     </div>
+  );
+}
+
+function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-1 py-3 text-[11px] font-medium transition-colors ${
+        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
@@ -174,8 +248,9 @@ function MealRow({ meal, onChange }: { meal: Meal; onChange: () => void }) {
     onSuccess: () => { onChange(); toast.success("Removed"); },
     onError: (e: any) => toast.error(e.message),
   });
+  const pending = del.isPending;
   return (
-    <div className="flex items-start gap-3 rounded-xl border bg-card p-3">
+    <div className={`flex items-start gap-3 rounded-xl border bg-card p-3 transition-opacity ${pending ? "opacity-50" : ""}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between gap-2">
           <div className="font-medium truncate">{meal.name}</div>
@@ -184,8 +259,13 @@ function MealRow({ meal, onChange }: { meal: Meal; onChange: () => void }) {
         {meal.description && <div className="text-xs text-muted-foreground truncate">{meal.description}</div>}
         <div className="mt-1 text-[11px] text-muted-foreground">{fmtTime(new Date(meal.eaten_at))}</div>
       </div>
-      <button onClick={() => del.mutate()} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-        <Trash2 className="h-4 w-4" />
+      <button
+        onClick={() => { if (!pending) del.mutate(); }}
+        disabled={pending}
+        aria-label="Delete meal"
+        className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors p-2 -m-1"
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
       </button>
     </div>
   );
@@ -197,6 +277,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
     name: string; description: string; calories: number;
@@ -232,7 +313,8 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
   }
 
   async function save() {
-    if (!draft) return;
+    if (!draft || saving) return;
+    setSaving(true);
     try {
       const now = new Date();
       await addFn({
@@ -249,6 +331,8 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
       onAdded();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -258,14 +342,18 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
     setOpen(true);
   }
 
+  const photoBusy = analyzing || saving;
+
   return (
     <>
       <div className="grid grid-cols-2 gap-2">
         <Button
-          onClick={() => fileInput.current?.click()}
+          onClick={() => { if (!photoBusy) fileInput.current?.click(); }}
+          disabled={photoBusy}
           className="h-12 rounded-xl"
         >
-          <Camera className="h-4 w-4 mr-2" /> Photo
+          {analyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
+          {analyzing ? "Analyzing…" : "Photo"}
         </Button>
         <Button variant="outline" onClick={openManual} className="h-12 rounded-xl">
           <Plus className="h-4 w-4 mr-2" /> Manual
@@ -283,7 +371,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
         }}
       />
 
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setDraft(null); setPreviewUrl(null); }}}>
+      <Dialog open={open} onOpenChange={(o) => { if (saving) return; setOpen(o); if (!o) { setDraft(null); setPreviewUrl(null); }}}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Log meal</DialogTitle>
@@ -328,9 +416,9 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} disabled={!draft || analyzing || !draft.name || draft.calories <= 0}>
-              Save
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={save} disabled={!draft || analyzing || saving || !draft.name || draft.calories <= 0}>
+              {saving ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>) : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -448,6 +536,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
   const [range, setRange] = useState<"7" | "30" | "all">("30");
   const addFn = useServerFnTanstack(addWeight);
   const delFn = useServerFnTanstack(deleteWeight);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const add = useMutation({
     mutationFn: (kg: number) => addFn({ data: { weight_kg: kg } }),
@@ -456,12 +545,15 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
   });
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
+    onMutate: (id: string) => { setDeletingId(id); },
+    onSettled: () => setDeletingId(null),
     onSuccess: () => { onChange(); toast.success("Removed"); },
     onError: (e: any) => toast.error(e.message),
   });
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (add.isPending) return;
     const n = Number(input);
     if (!n || n <= 0) return toast.error("Enter a valid weight");
     add.mutate(n);
@@ -505,7 +597,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
           className="h-12 rounded-xl"
         />
         <Button type="submit" disabled={add.isPending} className="h-12 rounded-xl px-5">
-          <Plus className="h-4 w-4" />
+          {add.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         </Button>
       </form>
 
@@ -552,20 +644,28 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
           </div>
         ) : (
           <div className="rounded-xl border divide-y bg-card">
-            {[...weights].reverse().map((w) => (
-              <div key={w.id} className="flex items-center justify-between px-4 py-3">
-                <div className="text-sm">
-                  {fmtDay(new Date(w.logged_at))}
-                  <span className="text-muted-foreground"> · {fmtTime(new Date(w.logged_at))}</span>
+            {[...weights].reverse().map((w) => {
+              const isDel = deletingId === w.id;
+              return (
+                <div key={w.id} className={`flex items-center justify-between px-4 py-3 transition-opacity ${isDel ? "opacity-50" : ""}`}>
+                  <div className="text-sm">
+                    {fmtDay(new Date(w.logged_at))}
+                    <span className="text-muted-foreground"> · {fmtTime(new Date(w.logged_at))}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm tabular-nums">{Number(w.weight_kg).toFixed(1)} <span className="text-muted-foreground">kg</span></div>
+                    <button
+                      onClick={() => { if (!isDel) del.mutate(w.id); }}
+                      disabled={isDel}
+                      aria-label="Delete entry"
+                      className="text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors p-2 -m-1"
+                    >
+                      {isDel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-sm tabular-nums">{Number(w.weight_kg).toFixed(1)} <span className="text-muted-foreground">kg</span></div>
-                  <button onClick={() => del.mutate(w.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

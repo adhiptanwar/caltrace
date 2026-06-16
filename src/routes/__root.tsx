@@ -80,9 +80,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "CalTrace" },
       { name: "description", content: "Log your meals and track your weight with AI-powered calorie estimation from food photos." },
       { name: "author", content: "Lovable" },
-      { name: "theme-color", content: "#000000" },
+      { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0a0a0a", media: "(prefers-color-scheme: dark)" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { name: "apple-mobile-web-app-title", content: "CalTrace" },
       { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:title", content: "CalTrace" },
@@ -110,11 +111,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+const themeInitScript = `(function(){try{var s=localStorage.getItem('theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         {children}
