@@ -215,7 +215,7 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+      className={`flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
         active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
       }`}
     >
