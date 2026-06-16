@@ -82,6 +82,15 @@ function AppPage() {
   const { dark, toggle } = useDarkMode();
   const [tab, setTab] = useState<TabKey>("today");
 
+  useEffect(() => {
+    document.documentElement.classList.add("app-scroll-locked");
+    document.body.classList.add("app-scroll-locked");
+    return () => {
+      document.documentElement.classList.remove("app-scroll-locked");
+      document.body.classList.remove("app-scroll-locked");
+    };
+  }, []);
+
   const mealsQ = useQuery({
     queryKey: ["meals"],
     queryFn: () => listMealsFn({ data: {} }) as Promise<Meal[]>,
