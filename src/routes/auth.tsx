@@ -21,9 +21,21 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/app" });
+    let done = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!done && data.session) {
+        done = true;
+        navigate({ to: "/app", replace: true });
+      }
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (done) return;
+      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")) {
+        done = true;
+        navigate({ to: "/app", replace: true });
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
   async function submit(e: React.FormEvent) {
