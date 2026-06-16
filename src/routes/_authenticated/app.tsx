@@ -53,11 +53,11 @@ function AppPage() {
 
   const mealsQ = useQuery({
     queryKey: ["meals"],
-    queryFn: () => listMealsFn({ data: { sinceDays: 60 } }) as Promise<Meal[]>,
+    queryFn: () => listMealsFn({ data: {} }) as Promise<Meal[]>,
   });
   const weightsQ = useQuery({
     queryKey: ["weights"],
-    queryFn: () => listWeightsFn({ data: { sinceDays: 365 } }) as Promise<Weight[]>,
+    queryFn: () => listWeightsFn({ data: {} }) as Promise<Weight[]>,
   });
 
   async function signOut() {
