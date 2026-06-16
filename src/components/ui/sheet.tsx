@@ -57,18 +57,75 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
-      {children}
-    </SheetPrimitive.Content>
-  </SheetPortal>
-));
+>(({ side = "right", className, children, ...props }, ref) => {
+  const closeRef = React.useRef<HTMLButtonElement>(null);
+  const [dragY, setDragY] = React.useState(0);
+  const [dragging, setDragging] = React.useState(false);
+  const startY = React.useRef<number | null>(null);
+  const scrollEl = React.useRef<HTMLElement | null>(null);
+  const isBottom = side === "bottom";
+
+  function findScrollable(el: HTMLElement | null): HTMLElement | null {
+    let n: HTMLElement | null = el;
+    while (n && n !== document.body) {
+      const s = getComputedStyle(n);
+      if ((s.overflowY === "auto" || s.overflowY === "scroll") && n.scrollHeight > n.clientHeight) return n;
+      n = n.parentElement;
+    }
+    return null;
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (!isBottom) return;
+    startY.current = e.touches[0].clientY;
+    scrollEl.current = findScrollable(e.target as HTMLElement);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    if (!isBottom || startY.current == null) return;
+    const dy = e.touches[0].clientY - startY.current;
+    const atTop = (scrollEl.current?.scrollTop ?? 0) <= 0;
+    if (dy > 0 && atTop) {
+      setDragging(true);
+      setDragY(dy);
+    } else {
+      if (dragging) setDragging(false);
+      if (dragY !== 0) setDragY(0);
+    }
+  }
+  function onTouchEnd() {
+    if (!isBottom) return;
+    if (dragY > 90) {
+      closeRef.current?.click();
+    }
+    setDragY(0);
+    setDragging(false);
+    startY.current = null;
+  }
+
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        style={isBottom ? { transform: dragY ? `translateY(${dragY}px)` : undefined, transition: dragging ? "none" : undefined } : undefined}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        {...props}
+      >
+        <SheetPrimitive.Close
+          ref={closeRef}
+          className="absolute right-4 top-4 rounded-sm opacity-70 cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus-visible:outline-none disabled:pointer-events-none"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+        {children}
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  );
+});
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

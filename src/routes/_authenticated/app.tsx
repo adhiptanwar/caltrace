@@ -199,12 +199,12 @@ function AppPage() {
 
       <nav
         className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
+        style={{ bottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
       >
-        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1.5 py-1.5 flex items-center gap-1">
-          <NavBtn label="Today" icon={<Home className="h-4 w-4" />} active={tab === "today"} onClick={() => setTab("today")} />
-          <NavBtn label="History" icon={<BarChart3 className="h-4 w-4" />} active={tab === "history"} onClick={() => setTab("history")} />
-          <NavBtn label="Weight" icon={<Scale className="h-4 w-4" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-2 py-2 flex items-center gap-1.5">
+          <NavBtn label="Today" icon={<Home className="h-[18px] w-[18px]" />} active={tab === "today"} onClick={() => setTab("today")} />
+          <NavBtn label="History" icon={<BarChart3 className="h-[18px] w-[18px]" />} active={tab === "history"} onClick={() => setTab("history")} />
+          <NavBtn label="Weight" icon={<Scale className="h-[18px] w-[18px]" />} active={tab === "weight"} onClick={() => setTab("weight")} />
         </div>
       </nav>
     </div>
@@ -215,7 +215,7 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+      className={`flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
         active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
       }`}
     >
