@@ -367,14 +367,32 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
     setSaving(true);
     try {
       const now = new Date();
-      await addFn({
-        data: {
-          ...draft,
-          category: categoryFromDate(now),
-          eaten_at: now.toISOString(),
-        },
-      });
-      toast.success(`Logged ${draft.calories} kcal`);
+      const useAuto = draft.autoTotals && draft.items.length > 0;
+      const totals = useAuto
+        ? draft.items.reduce(
+            (acc, it) => {
+              acc.calories += it.calories * it.quantity;
+              acc.protein_g += it.protein_g * it.quantity;
+              acc.carbs_g += it.carbs_g * it.quantity;
+              acc.fat_g += it.fat_g * it.quantity;
+              return acc;
+            },
+            { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+          )
+        : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
+      const payload = {
+        name: draft.name,
+        description: draft.description,
+        items: draft.items,
+        calories: Math.round(totals.calories),
+        protein_g: Math.round(totals.protein_g * 10) / 10,
+        carbs_g: Math.round(totals.carbs_g * 10) / 10,
+        fat_g: Math.round(totals.fat_g * 10) / 10,
+        category: categoryFromDate(now),
+        eaten_at: now.toISOString(),
+      };
+      await addFn({ data: payload });
+      toast.success(`Logged ${payload.calories} kcal`);
       setOpen(false);
       setDraft(null);
       setPreviewUrl(null);
