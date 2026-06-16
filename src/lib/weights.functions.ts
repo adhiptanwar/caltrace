@@ -24,15 +24,15 @@ export const addWeight = createServerFn({ method: "POST" })
 export const listWeights = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ sinceDays: z.number().int().min(1).max(3650).default(180) }).parse(input ?? {}),
+    z.object({ sinceDays: z.number().int().min(1).max(36500).nullable().optional() }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    const since = new Date(Date.now() - data.sinceDays * 86400_000).toISOString();
-    const { data: rows, error } = await context.supabase
-      .from("weights")
-      .select("*")
-      .gte("logged_at", since)
-      .order("logged_at", { ascending: true });
+    let q = context.supabase.from("weights").select("*").order("logged_at", { ascending: true });
+    if (data.sinceDays) {
+      const since = new Date(Date.now() - data.sinceDays * 86400_000).toISOString();
+      q = q.gte("logged_at", since);
+    }
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
