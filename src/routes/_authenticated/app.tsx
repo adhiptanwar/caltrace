@@ -467,8 +467,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
     add.mutate(n);
   }
 
-  const days = Number(range);
-  const cutoff = Date.now() - days * 86400_000;
+  const cutoff = range === "all" ? 0 : Date.now() - Number(range) * 86400_000;
   const filtered = weights.filter((w) => new Date(w.logged_at).getTime() >= cutoff);
   const chartData = filtered.map((w) => ({
     label: fmtShort(new Date(w.logged_at)),
