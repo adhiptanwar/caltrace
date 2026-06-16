@@ -53,11 +53,11 @@ function AppPage() {
 
   const mealsQ = useQuery({
     queryKey: ["meals"],
-    queryFn: () => listMealsFn({ data: { sinceDays: 60 } }) as Promise<Meal[]>,
+    queryFn: () => listMealsFn({ data: {} }) as Promise<Meal[]>,
   });
   const weightsQ = useQuery({
     queryKey: ["weights"],
-    queryFn: () => listWeightsFn({ data: { sinceDays: 365 } }) as Promise<Weight[]>,
+    queryFn: () => listWeightsFn({ data: {} }) as Promise<Weight[]>,
   });
 
   async function signOut() {
@@ -275,7 +275,6 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
         ref={fileInput}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -358,14 +357,24 @@ function Field({ label, value, onChange }: { label: string; value: number; onCha
 /* ---------------- History ---------------- */
 
 function HistoryView({ meals }: { meals: Meal[] }) {
-  const [range, setRange] = useState<"7" | "30">("7");
-  const days = Number(range);
+  const [range, setRange] = useState<"7" | "30" | "all">("7");
 
   const data = useMemo(() => {
     const buckets: Record<string, number> = {};
-    for (let i = days - 1; i >= 0; i--) {
-      const d = startOfDay(new Date(Date.now() - i * 86400_000));
-      buckets[d.toISOString()] = 0;
+    if (range === "all") {
+      if (meals.length === 0) return [];
+      const sorted = [...meals].sort((a, b) => new Date(a.eaten_at).getTime() - new Date(b.eaten_at).getTime());
+      const start = startOfDay(new Date(sorted[0].eaten_at)).getTime();
+      const end = startOfDay(new Date()).getTime();
+      for (let t = start; t <= end; t += 86400_000) {
+        buckets[new Date(t).toISOString()] = 0;
+      }
+    } else {
+      const days = Number(range);
+      for (let i = days - 1; i >= 0; i--) {
+        const d = startOfDay(new Date(Date.now() - i * 86400_000));
+        buckets[d.toISOString()] = 0;
+      }
     }
     meals.forEach((m) => {
       const k = startOfDay(new Date(m.eaten_at)).toISOString();
@@ -376,7 +385,7 @@ function HistoryView({ meals }: { meals: Meal[] }) {
       kcal,
       iso,
     }));
-  }, [meals, days]);
+  }, [meals, range]);
 
   const totalAvg = Math.round(data.reduce((s, d) => s + d.kcal, 0) / Math.max(1, data.length));
 
@@ -388,13 +397,13 @@ function HistoryView({ meals }: { meals: Meal[] }) {
           <div className="text-2xl font-semibold tabular-nums">{totalAvg} <span className="text-sm text-muted-foreground font-normal">kcal</span></div>
         </div>
         <div className="inline-flex rounded-lg border p-0.5 bg-muted">
-          {(["7", "30"] as const).map((r) => (
+          {(["7", "30", "all"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
               className={`px-3 py-1 text-xs rounded-md transition-colors ${range === r ? "bg-background shadow-sm" : "text-muted-foreground"}`}
             >
-              {r}d
+              {r === "all" ? "All" : `${r}d`}
             </button>
           ))}
         </div>
@@ -436,7 +445,7 @@ function HistoryView({ meals }: { meals: Meal[] }) {
 
 function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => void }) {
   const [input, setInput] = useState("");
-  const [range, setRange] = useState<"7" | "30" | "180">("30");
+  const [range, setRange] = useState<"7" | "30" | "all">("30");
   const addFn = useServerFnTanstack(addWeight);
   const delFn = useServerFnTanstack(deleteWeight);
 
@@ -458,8 +467,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
     add.mutate(n);
   }
 
-  const days = Number(range);
-  const cutoff = Date.now() - days * 86400_000;
+  const cutoff = range === "all" ? 0 : Date.now() - Number(range) * 86400_000;
   const filtered = weights.filter((w) => new Date(w.logged_at).getTime() >= cutoff);
   const chartData = filtered.map((w) => ({
     label: fmtShort(new Date(w.logged_at)),
@@ -481,7 +489,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
         </div>
         {latest && (
           <div className="mt-2 text-xs text-muted-foreground">
-            {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)} kg over ${range}d`}
+            {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)} kg ${range === "all" ? "all time" : `over ${range}d`}`}
           </div>
         )}
       </div>
@@ -504,13 +512,13 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
       <div className="flex items-center justify-between">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">Trend</div>
         <div className="inline-flex rounded-lg border p-0.5 bg-muted">
-          {(["7", "30", "180"] as const).map((r) => (
+          {(["7", "30", "all"] as const).map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
               className={`px-3 py-1 text-xs rounded-md transition-colors ${range === r ? "bg-background shadow-sm" : "text-muted-foreground"}`}
             >
-              {r === "180" ? "6m" : `${r}d`}
+              {r === "all" ? "All" : `${r}d`}
             </button>
           ))}
         </div>
