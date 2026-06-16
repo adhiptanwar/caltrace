@@ -82,29 +82,60 @@ function AppPage() {
     navigate({ to: "/auth" });
   }
 
-  // Swipe to switch tabs
-  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  // Swipe to switch tabs (with visible drag animation)
+  const touch = useRef<{ x: number; y: number; t: number; locked: boolean | null } | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const [animating, setAnimating] = useState(false);
+
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0];
-    touch.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    touch.current = { x: t.clientX, y: t.clientY, t: Date.now(), locked: null };
+    setAnimating(false);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const start = touch.current;
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (start.locked === null && Math.abs(dx) + Math.abs(dy) > 10) {
+      start.locked = Math.abs(dx) > Math.abs(dy);
+    }
+    if (start.locked === true) {
+      const idx = TABS.indexOf(tab);
+      let clamped = dx;
+      if (idx === 0 && dx > 0) clamped = dx * 0.3;
+      if (idx === TABS.length - 1 && dx < 0) clamped = dx * 0.3;
+      setDragX(clamped);
+    }
   }
   function onTouchEnd(e: React.TouchEvent) {
     const start = touch.current;
     touch.current = null;
-    if (!start) return;
+    if (!start) { setDragX(0); return; }
     const t = e.changedTouches[0];
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     const dt = Date.now() - start.t;
-    if (dt > 600) return;
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+    const isSwipe = start.locked === true && dt < 600 && Math.abs(dx) > 60 && Math.abs(dy) < Math.abs(dx);
     const idx = TABS.indexOf(tab);
-    if (dx < 0 && idx < TABS.length - 1) setTab(TABS[idx + 1]);
-    if (dx > 0 && idx > 0) setTab(TABS[idx - 1]);
+    setAnimating(true);
+    if (isSwipe && dx < 0 && idx < TABS.length - 1) {
+      const w = window.innerWidth;
+      setDragX(-w);
+      setTimeout(() => { setAnimating(false); setDragX(0); setTab(TABS[idx + 1]); }, 180);
+    } else if (isSwipe && dx > 0 && idx > 0) {
+      const w = window.innerWidth;
+      setDragX(w);
+      setTimeout(() => { setAnimating(false); setDragX(0); setTab(TABS[idx - 1]); }, 180);
+    } else {
+      setDragX(0);
+      setTimeout(() => setAnimating(false), 180);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <header
         className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -132,8 +163,14 @@ function AppPage() {
 
       <main
         className="mx-auto max-w-xl px-5 pt-4"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)" }}
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 7rem)",
+          transform: `translate3d(${dragX}px, 0, 0)`,
+          transition: animating ? "transform 180ms ease-out" : "none",
+          willChange: "transform",
+        }}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         {tab === "today" && (
@@ -146,13 +183,13 @@ function AppPage() {
       </main>
 
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
       >
-        <div className="mx-auto max-w-xl grid grid-cols-3">
-          <NavBtn label="Today" icon={<Home className="h-5 w-5" />} active={tab === "today"} onClick={() => setTab("today")} />
-          <NavBtn label="History" icon={<BarChart3 className="h-5 w-5" />} active={tab === "history"} onClick={() => setTab("history")} />
-          <NavBtn label="Weight" icon={<Scale className="h-5 w-5" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1.5 py-1.5 flex items-center gap-1">
+          <NavBtn label="Today" icon={<Home className="h-4 w-4" />} active={tab === "today"} onClick={() => setTab("today")} />
+          <NavBtn label="History" icon={<BarChart3 className="h-4 w-4" />} active={tab === "history"} onClick={() => setTab("history")} />
+          <NavBtn label="Weight" icon={<Scale className="h-4 w-4" />} active={tab === "weight"} onClick={() => setTab("weight")} />
         </div>
       </nav>
     </div>
@@ -163,8 +200,8 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 py-3 text-[11px] font-medium transition-colors ${
-        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+      className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+        active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
       }`}
     >
       {icon}
@@ -172,6 +209,7 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
     </button>
   );
 }
+
 
 /* ---------------- Today ---------------- */
 
@@ -281,7 +319,9 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
     name: string; description: string; calories: number;
-    protein_g: number; carbs_g: number; fat_g: number; items: any[];
+    protein_g: number; carbs_g: number; fat_g: number;
+    items: { name: string; portion?: string; quantity: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }[];
+    autoTotals: boolean;
   } | null>(null);
 
   const analyzeFn = useServerFnTanstack(analyzeMealImage);
@@ -295,6 +335,15 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
       setPreviewUrl(dataUrl);
       setOpen(true);
       const result: any = await analyzeFn({ data: { imageDataUrl: dataUrl } });
+      const items = (result.items ?? []).map((it: any) => ({
+        name: String(it.name ?? "Item"),
+        portion: it.portion ? String(it.portion) : undefined,
+        quantity: Number(it.quantity ?? 1) || 1,
+        calories: Number(it.calories ?? 0) || 0,
+        protein_g: Number(it.protein_g ?? 0) || 0,
+        carbs_g: Number(it.carbs_g ?? 0) || 0,
+        fat_g: Number(it.fat_g ?? 0) || 0,
+      }));
       setDraft({
         name: result.name,
         description: result.description,
@@ -302,7 +351,8 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
         protein_g: result.protein_g,
         carbs_g: result.carbs_g,
         fat_g: result.fat_g,
-        items: result.items,
+        items,
+        autoTotals: items.length > 0,
       });
     } catch (e: any) {
       toast.error(e.message ?? "Analysis failed");
@@ -317,14 +367,32 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
     setSaving(true);
     try {
       const now = new Date();
-      await addFn({
-        data: {
-          ...draft,
-          category: categoryFromDate(now),
-          eaten_at: now.toISOString(),
-        },
-      });
-      toast.success(`Logged ${draft.calories} kcal`);
+      const useAuto = draft.autoTotals && draft.items.length > 0;
+      const totals = useAuto
+        ? draft.items.reduce(
+            (acc, it) => {
+              acc.calories += it.calories * it.quantity;
+              acc.protein_g += it.protein_g * it.quantity;
+              acc.carbs_g += it.carbs_g * it.quantity;
+              acc.fat_g += it.fat_g * it.quantity;
+              return acc;
+            },
+            { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+          )
+        : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
+      const payload = {
+        name: draft.name,
+        description: draft.description,
+        items: draft.items,
+        calories: Math.round(totals.calories),
+        protein_g: Math.round(totals.protein_g * 10) / 10,
+        carbs_g: Math.round(totals.carbs_g * 10) / 10,
+        fat_g: Math.round(totals.fat_g * 10) / 10,
+        category: categoryFromDate(now),
+        eaten_at: now.toISOString(),
+      };
+      await addFn({ data: payload });
+      toast.success(`Logged ${payload.calories} kcal`);
       setOpen(false);
       setDraft(null);
       setPreviewUrl(null);
@@ -338,7 +406,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
 
   function openManual() {
     setPreviewUrl(null);
-    setDraft({ name: "", description: "", calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, items: [] });
+    setDraft({ name: "", description: "", calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, items: [], autoTotals: false });
     setOpen(true);
   }
 
@@ -390,34 +458,96 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
             </div>
           )}
 
-          {draft && !analyzing && (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Name</Label>
-                <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                <Field label="kcal" value={draft.calories} onChange={(v) => setDraft({ ...draft, calories: v })} />
-                <Field label="P (g)" value={draft.protein_g} onChange={(v) => setDraft({ ...draft, protein_g: v })} />
-                <Field label="C (g)" value={draft.carbs_g} onChange={(v) => setDraft({ ...draft, carbs_g: v })} />
-                <Field label="F (g)" value={draft.fat_g} onChange={(v) => setDraft({ ...draft, fat_g: v })} />
-              </div>
-              {draft.items && draft.items.length > 0 && (
-                <div className="rounded-lg bg-muted p-3 text-xs space-y-1">
-                  {draft.items.map((it: any, i: number) => (
-                    <div key={i} className="flex justify-between gap-2">
-                      <span className="truncate">{it.name}{it.portion ? ` · ${it.portion}` : ""}</span>
-                      <span className="tabular-nums text-muted-foreground">{it.calories} kcal</span>
-                    </div>
-                  ))}
+          {draft && !analyzing && (() => {
+            const recomputed = draft.items.reduce(
+              (acc, it) => {
+                acc.calories += it.calories * it.quantity;
+                acc.protein_g += it.protein_g * it.quantity;
+                acc.carbs_g += it.carbs_g * it.quantity;
+                acc.fat_g += it.fat_g * it.quantity;
+                return acc;
+              },
+              { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+            );
+            const totals = draft.autoTotals && draft.items.length > 0
+              ? {
+                  calories: Math.round(recomputed.calories),
+                  protein_g: Math.round(recomputed.protein_g * 10) / 10,
+                  carbs_g: Math.round(recomputed.carbs_g * 10) / 10,
+                  fat_g: Math.round(recomputed.fat_g * 10) / 10,
+                }
+              : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
+            function updateItem(i: number, patch: Partial<NonNullable<typeof draft>["items"][number]>) {
+              const next = draft!.items.map((it, idx) => idx === i ? { ...it, ...patch } : it);
+              setDraft({ ...draft!, items: next });
+            }
+            function removeItem(i: number) {
+              setDraft({ ...draft!, items: draft!.items.filter((_, idx) => idx !== i) });
+            }
+            return (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Name</Label>
+                  <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
                 </div>
-              )}
-            </div>
-          )}
+
+                {draft.items.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Items</Label>
+                      <span className="text-[10px] text-muted-foreground">Totals auto-update</span>
+                    </div>
+                    <div className="rounded-lg border divide-y bg-card">
+                      {draft.items.map((it, i) => (
+                        <div key={i} className="p-2.5 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{it.name}</div>
+                            <div className="text-[11px] text-muted-foreground tabular-nums">
+                              {it.portion ?? "1 serving"} · {Math.round(it.calories * it.quantity)} kcal
+                            </div>
+                          </div>
+                          <div className="flex items-center rounded-full border">
+                            <button
+                              type="button"
+                              onClick={() => updateItem(i, { quantity: Math.max(0.5, Math.round((it.quantity - 0.5) * 2) / 2) })}
+                              className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
+                              aria-label="Decrease"
+                            >−</button>
+                            <span className="px-1.5 text-xs tabular-nums w-8 text-center">{it.quantity % 1 === 0 ? it.quantity : it.quantity.toFixed(1)}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateItem(i, { quantity: Math.round((it.quantity + 0.5) * 2) / 2 })}
+                              className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
+                              aria-label="Increase"
+                            >+</button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(i)}
+                            className="text-muted-foreground hover:text-destructive p-1.5"
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-4 gap-2">
+                  <Field label="kcal" value={totals.calories} onChange={(v) => setDraft({ ...draft, calories: v, autoTotals: false })} />
+                  <Field label="P (g)" value={totals.protein_g} onChange={(v) => setDraft({ ...draft, protein_g: v, autoTotals: false })} />
+                  <Field label="C (g)" value={totals.carbs_g} onChange={(v) => setDraft({ ...draft, carbs_g: v, autoTotals: false })} />
+                  <Field label="F (g)" value={totals.fat_g} onChange={(v) => setDraft({ ...draft, fat_g: v, autoTotals: false })} />
+                </div>
+              </div>
+            );
+          })()}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={save} disabled={!draft || analyzing || saving || !draft.name || draft.calories <= 0}>
+            <Button onClick={save} disabled={!draft || analyzing || saving || !draft.name}>
               {saving ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>) : "Save"}
             </Button>
           </DialogFooter>
