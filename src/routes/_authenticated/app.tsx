@@ -440,30 +440,92 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
             </div>
           )}
 
-          {draft && !analyzing && (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Name</Label>
-                <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                <Field label="kcal" value={draft.calories} onChange={(v) => setDraft({ ...draft, calories: v })} />
-                <Field label="P (g)" value={draft.protein_g} onChange={(v) => setDraft({ ...draft, protein_g: v })} />
-                <Field label="C (g)" value={draft.carbs_g} onChange={(v) => setDraft({ ...draft, carbs_g: v })} />
-                <Field label="F (g)" value={draft.fat_g} onChange={(v) => setDraft({ ...draft, fat_g: v })} />
-              </div>
-              {draft.items && draft.items.length > 0 && (
-                <div className="rounded-lg bg-muted p-3 text-xs space-y-1">
-                  {draft.items.map((it: any, i: number) => (
-                    <div key={i} className="flex justify-between gap-2">
-                      <span className="truncate">{it.name}{it.portion ? ` · ${it.portion}` : ""}</span>
-                      <span className="tabular-nums text-muted-foreground">{it.calories} kcal</span>
-                    </div>
-                  ))}
+          {draft && !analyzing && (() => {
+            const recomputed = draft.items.reduce(
+              (acc, it) => {
+                acc.calories += it.calories * it.quantity;
+                acc.protein_g += it.protein_g * it.quantity;
+                acc.carbs_g += it.carbs_g * it.quantity;
+                acc.fat_g += it.fat_g * it.quantity;
+                return acc;
+              },
+              { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+            );
+            const totals = draft.autoTotals && draft.items.length > 0
+              ? {
+                  calories: Math.round(recomputed.calories),
+                  protein_g: Math.round(recomputed.protein_g * 10) / 10,
+                  carbs_g: Math.round(recomputed.carbs_g * 10) / 10,
+                  fat_g: Math.round(recomputed.fat_g * 10) / 10,
+                }
+              : { calories: draft.calories, protein_g: draft.protein_g, carbs_g: draft.carbs_g, fat_g: draft.fat_g };
+            function updateItem(i: number, patch: Partial<typeof draft.items[number]>) {
+              const next = draft!.items.map((it, idx) => idx === i ? { ...it, ...patch } : it);
+              setDraft({ ...draft!, items: next });
+            }
+            function removeItem(i: number) {
+              setDraft({ ...draft!, items: draft!.items.filter((_, idx) => idx !== i) });
+            }
+            return (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                <div>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Name</Label>
+                  <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
                 </div>
-              )}
-            </div>
-          )}
+
+                {draft.items.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Items</Label>
+                      <span className="text-[10px] text-muted-foreground">Totals auto-update</span>
+                    </div>
+                    <div className="rounded-lg border divide-y bg-card">
+                      {draft.items.map((it, i) => (
+                        <div key={i} className="p-2.5 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{it.name}</div>
+                            <div className="text-[11px] text-muted-foreground tabular-nums">
+                              {it.portion ?? "1 serving"} · {Math.round(it.calories * it.quantity)} kcal
+                            </div>
+                          </div>
+                          <div className="flex items-center rounded-full border">
+                            <button
+                              type="button"
+                              onClick={() => updateItem(i, { quantity: Math.max(0.5, Math.round((it.quantity - 0.5) * 2) / 2) })}
+                              className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
+                              aria-label="Decrease"
+                            >−</button>
+                            <span className="px-1.5 text-xs tabular-nums w-8 text-center">{it.quantity % 1 === 0 ? it.quantity : it.quantity.toFixed(1)}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateItem(i, { quantity: Math.round((it.quantity + 0.5) * 2) / 2 })}
+                              className="h-7 w-7 grid place-items-center text-sm text-muted-foreground hover:text-foreground"
+                              aria-label="Increase"
+                            >+</button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(i)}
+                            className="text-muted-foreground hover:text-destructive p-1.5"
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-4 gap-2">
+                  <Field label="kcal" value={totals.calories} onChange={(v) => setDraft({ ...draft, calories: v, autoTotals: false })} />
+                  <Field label="P (g)" value={totals.protein_g} onChange={(v) => setDraft({ ...draft, protein_g: v, autoTotals: false })} />
+                  <Field label="C (g)" value={totals.carbs_g} onChange={(v) => setDraft({ ...draft, carbs_g: v, autoTotals: false })} />
+                  <Field label="F (g)" value={totals.fat_g} onChange={(v) => setDraft({ ...draft, fat_g: v, autoTotals: false })} />
+                </div>
+              </div>
+            );
+          })()}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
