@@ -82,29 +82,60 @@ function AppPage() {
     navigate({ to: "/auth" });
   }
 
-  // Swipe to switch tabs
-  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  // Swipe to switch tabs (with visible drag animation)
+  const touch = useRef<{ x: number; y: number; t: number; locked: boolean | null } | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const [animating, setAnimating] = useState(false);
+
   function onTouchStart(e: React.TouchEvent) {
     const t = e.touches[0];
-    touch.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    touch.current = { x: t.clientX, y: t.clientY, t: Date.now(), locked: null };
+    setAnimating(false);
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const start = touch.current;
+    if (!start) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (start.locked === null && Math.abs(dx) + Math.abs(dy) > 10) {
+      start.locked = Math.abs(dx) > Math.abs(dy);
+    }
+    if (start.locked === true) {
+      const idx = TABS.indexOf(tab);
+      let clamped = dx;
+      if (idx === 0 && dx > 0) clamped = dx * 0.3;
+      if (idx === TABS.length - 1 && dx < 0) clamped = dx * 0.3;
+      setDragX(clamped);
+    }
   }
   function onTouchEnd(e: React.TouchEvent) {
     const start = touch.current;
     touch.current = null;
-    if (!start) return;
+    if (!start) { setDragX(0); return; }
     const t = e.changedTouches[0];
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
     const dt = Date.now() - start.t;
-    if (dt > 600) return;
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+    const isSwipe = start.locked === true && dt < 600 && Math.abs(dx) > 60 && Math.abs(dy) < Math.abs(dx);
     const idx = TABS.indexOf(tab);
-    if (dx < 0 && idx < TABS.length - 1) setTab(TABS[idx + 1]);
-    if (dx > 0 && idx > 0) setTab(TABS[idx - 1]);
+    setAnimating(true);
+    if (isSwipe && dx < 0 && idx < TABS.length - 1) {
+      const w = window.innerWidth;
+      setDragX(-w);
+      setTimeout(() => { setAnimating(false); setDragX(0); setTab(TABS[idx + 1]); }, 180);
+    } else if (isSwipe && dx > 0 && idx > 0) {
+      const w = window.innerWidth;
+      setDragX(w);
+      setTimeout(() => { setAnimating(false); setDragX(0); setTab(TABS[idx - 1]); }, 180);
+    } else {
+      setDragX(0);
+      setTimeout(() => setAnimating(false), 180);
+    }
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <header
         className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -132,8 +163,14 @@ function AppPage() {
 
       <main
         className="mx-auto max-w-xl px-5 pt-4"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)" }}
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 7rem)",
+          transform: `translate3d(${dragX}px, 0, 0)`,
+          transition: animating ? "transform 180ms ease-out" : "none",
+          willChange: "transform",
+        }}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         {tab === "today" && (
@@ -146,16 +183,30 @@ function AppPage() {
       </main>
 
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}
       >
-        <div className="mx-auto max-w-xl grid grid-cols-3">
-          <NavBtn label="Today" icon={<Home className="h-5 w-5" />} active={tab === "today"} onClick={() => setTab("today")} />
-          <NavBtn label="History" icon={<BarChart3 className="h-5 w-5" />} active={tab === "history"} onClick={() => setTab("history")} />
-          <NavBtn label="Weight" icon={<Scale className="h-5 w-5" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1.5 py-1.5 flex items-center gap-1">
+          <NavBtn label="Today" icon={<Home className="h-4 w-4" />} active={tab === "today"} onClick={() => setTab("today")} />
+          <NavBtn label="History" icon={<BarChart3 className="h-4 w-4" />} active={tab === "history"} onClick={() => setTab("history")} />
+          <NavBtn label="Weight" icon={<Scale className="h-4 w-4" />} active={tab === "weight"} onClick={() => setTab("weight")} />
         </div>
       </nav>
     </div>
+  );
+}
+
+function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+        active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
