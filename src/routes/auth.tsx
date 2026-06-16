@@ -28,14 +28,14 @@ function AuthPage() {
         navigate({ to: "/app", replace: true });
       }
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    const sub = supabase.auth.onAuthStateChange((event, session) => {
       if (done) return;
       if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")) {
         done = true;
         navigate({ to: "/app", replace: true });
       }
     });
-    return () => sub.subscription.unsubscribe();
+    return () => sub.data.subscription.unsubscribe();
   }, [navigate]);
 
   async function submit(e: React.FormEvent) {
