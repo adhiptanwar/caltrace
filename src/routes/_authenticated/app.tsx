@@ -275,7 +275,6 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
         ref={fileInput}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
