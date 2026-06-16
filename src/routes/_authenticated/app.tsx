@@ -547,7 +547,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={save} disabled={!draft || analyzing || saving || !draft.name || draft.calories <= 0}>
+            <Button onClick={save} disabled={!draft || analyzing || saving || !draft.name}>
               {saving ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>) : "Save"}
             </Button>
           </DialogFooter>
