@@ -1,6 +1,6 @@
 {
-  "name": "CalTrace",
-  "short_name": "CalTrace",
+  "name": "Trace",
+  "short_name": "Trace",
   "description": "Log meals with AI-powered calorie estimates and track your weight.",
   "start_url": "/",
   "scope": "/",
