@@ -489,7 +489,7 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
         </div>
         {latest && (
           <div className="mt-2 text-xs text-muted-foreground">
-            {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)} kg over ${range}d`}
+            {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)} kg ${range === "all" ? "all time" : `over ${range}d`}`}
           </div>
         )}
       </div>
