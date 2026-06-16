@@ -199,7 +199,7 @@ function AppPage() {
 
       <nav
         className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
-        style={{ bottom: "max(calc(env(safe-area-inset-bottom) - 28px), 0.25rem)" }}
+        style={{ bottom: "max(calc(env(safe-area-inset-bottom) - 8px), 0.75rem)" }}
       >
         <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-2 py-2 flex items-center gap-1.5">
           <NavBtn label="Today" icon={<Home className="h-[18px] w-[18px]" />} active={tab === "today"} onClick={() => setTab("today")} />
