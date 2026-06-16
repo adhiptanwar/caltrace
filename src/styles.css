@@ -98,15 +98,20 @@
   }
   html, body {
     width: 100%;
+    min-height: 100%;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  html.app-scroll-locked,
+  body.app-scroll-locked {
     height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
     position: fixed;
     inset: 0;
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 
   #root, #__root {
