@@ -210,19 +210,6 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
   );
 }
 
-function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 py-3 text-[11px] font-medium transition-colors ${
-        active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  );
-}
 
 /* ---------------- Today ---------------- */
 
