@@ -107,7 +107,6 @@
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    touch-action: none;
   }
 
   #root, #__root {
