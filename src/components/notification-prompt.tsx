@@ -32,9 +32,7 @@ export function NotificationPrompt() {
 
       // iOS requires installing to Home Screen first; don't prompt in Safari.
       const ua = navigator.userAgent;
-      const isIOS =
-        /iphone|ipad|ipod/i.test(ua) ||
-        (/Mac/.test(ua) && "ontouchend" in document);
+      const isIOS = /iphone|ipad|ipod/i.test(ua) || (/Mac/.test(ua) && "ontouchend" in document);
       if (isIOS && !isStandalonePWA()) return;
 
       const perm = await getPushPermission();
@@ -100,9 +98,7 @@ export function NotificationPrompt() {
             <Bell className="h-6 w-6" />
           </div>
           <DialogTitle className="text-center">Turn on meal reminders?</DialogTitle>
-          <DialogDescription className="text-center">
-            Get a gentle nudge at breakfast (8:00 AM), lunch (12:30 PM) and dinner (7:00 PM) — only if you haven't logged yet.
-          </DialogDescription>
+          <DialogDescription className="text-center">Get a gentle nudge to log your stats.</DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-col gap-2 sm:space-x-0">
           <Button onClick={handleEnable} disabled={loading} className="w-full">
