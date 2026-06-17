@@ -104,8 +104,14 @@ export function ProfileView({
     if (Math.abs(diffKg) < 0.05) return { reached: true as const };
     const needLose = diffKg > 0;
     const windowDays = projWindow === "all" ? null : Number(projWindow);
-    const since = windowDays == null ? null : startOfDay(new Date(Date.now() - (windowDays - 1) * 86400_000));
-    const recent = since ? meals.filter((m) => new Date(m.eaten_at) >= since) : meals;
+    const todayStart = startOfDay(new Date());
+    const since = windowDays == null ? null : new Date(todayStart.getTime() - windowDays * 86400_000);
+    const recent = meals.filter((m) => {
+      const t = new Date(m.eaten_at);
+      if (t >= todayStart) return false; // exclude today
+      if (since && t < since) return false;
+      return true;
+    });
     if (recent.length === 0) return { reached: false as const, days: null, avgIntake: 0, direction: needLose ? "lose" : "gain" as const };
     const totals = new Map<string, number>();
     recent.forEach((m) => {
