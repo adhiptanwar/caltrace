@@ -146,7 +146,11 @@ export function InstallPrompt() {
         ) : null}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="ghost" onClick={dismiss}>
+          <Button 
+            variant="ghost" 
+            onClick={dismiss}
+            className="focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+          >
             Not now
           </Button>
           {!iosMode && (
