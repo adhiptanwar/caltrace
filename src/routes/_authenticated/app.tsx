@@ -167,9 +167,9 @@ function AppPage() {
       >
         <div className="mx-auto max-w-xl px-5 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={logoBlack.url} alt="" className="h-6 w-6 dark:hidden" />
-            <img src={logoWhite.url} alt="" className="h-6 w-6 hidden dark:block" />
-            <h1 className="text-base font-semibold tracking-tight">Trace</h1>
+            <img src={logoBlack.url} alt="" className="h-6 w-6 object-contain shrink-0 dark:hidden" />
+            <img src={logoWhite.url} alt="" className="h-6 w-6 object-contain shrink-0 hidden dark:block" />
+            <h1 className="text-base font-semibold tracking-tight leading-none">Trace</h1>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={toggle} aria-label="Toggle theme" className="text-muted-foreground hover:text-foreground transition-colors p-2 -mr-1">

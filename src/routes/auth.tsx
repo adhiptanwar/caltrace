@@ -111,11 +111,11 @@ function AuthPage() {
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
           <div className="flex items-center justify-center gap-3">
-            <img src={logoBlack.url} alt="" className="h-9 w-9 dark:hidden" />
-            <img src={logoWhite.url} alt="" className="h-9 w-9 hidden dark:block" />
-            <h1 className="text-3xl font-semibold tracking-tight">Trace</h1>
+            <img src={logoBlack.url} alt="" className="h-9 w-9 object-contain shrink-0 dark:hidden" />
+            <img src={logoWhite.url} alt="" className="h-9 w-9 object-contain shrink-0 hidden dark:block" />
+            <h1 className="text-3xl font-semibold tracking-tight leading-none">Trace</h1>
           </div>
-          <p className="mt-2 text-sm text-muted-foreground">Food & weight, quietly tracked.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Food & weight, quietly tracked.</p>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
