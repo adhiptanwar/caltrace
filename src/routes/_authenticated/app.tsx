@@ -113,6 +113,30 @@ function AppPage() {
     queryKey: ["weights"],
     queryFn: () => listWeightsFn({ data: {} }) as Promise<Weight[]>,
   });
+  const getProfileFn = useServerFnTanstack(getProfile);
+  const profileQ = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => (getProfileFn as any)() as Promise<ProfileRow | null>,
+  });
+
+  const latestWeightKg = useMemo(() => {
+    const ws = weightsQ.data ?? [];
+    if (ws.length === 0) return null;
+    return Number(ws[ws.length - 1].weight_kg);
+  }, [weightsQ.data]);
+
+  const maintenance = useMemo(() => {
+    const p = profileQ.data;
+    if (!p) return null;
+    const age = ageFromBirthDate(p.birth_date);
+    const bmr = calcBMR({
+      gender: p.gender,
+      weight_kg: latestWeightKg,
+      height_cm: p.height_cm,
+      age,
+    });
+    return calcTDEE(bmr, p.activity_level);
+  }, [profileQ.data, latestWeightKg]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -195,7 +219,7 @@ function AppPage() {
       </header>
 
       <main
-        className="min-h-0 flex-1 overflow-hidden overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
@@ -209,9 +233,24 @@ function AppPage() {
         {tab === "today" && (
           <TodayView meals={mealsQ.data ?? []} loading={mealsQ.isLoading} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />
         )}
-        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />}
+        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} maintenance={maintenance} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />}
         {tab === "weight" && (
-          <WeightView weights={weightsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })} />
+          <WeightView
+            weights={weightsQ.data ?? []}
+            maintenance={maintenance}
+            goalKg={profileQ.data?.goal_weight_kg ?? null}
+            meals={mealsQ.data ?? []}
+            onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })}
+          />
+        )}
+        {tab === "profile" && (
+          <ProfileView
+            latestWeightKg={latestWeightKg}
+            onChange={() => {
+              qc.invalidateQueries({ queryKey: ["weights"] });
+              qc.invalidateQueries({ queryKey: ["profile"] });
+            }}
+          />
         )}
       </main>
 
@@ -219,10 +258,11 @@ function AppPage() {
         className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
         style={{ bottom: "max(calc(env(safe-area-inset-bottom) - 8px), 0.75rem)" }}
       >
-        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-2 py-2 flex items-center gap-1.5">
+        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1.5 py-1.5 flex items-center gap-1">
           <NavBtn label="Today" icon={<Home className="h-[18px] w-[18px]" />} active={tab === "today"} onClick={() => setTab("today")} />
           <NavBtn label="History" icon={<BarChart3 className="h-[18px] w-[18px]" />} active={tab === "history"} onClick={() => setTab("history")} />
           <NavBtn label="Weight" icon={<Scale className="h-[18px] w-[18px]" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+          <NavBtn label="Profile" icon={<User className="h-[18px] w-[18px]" />} active={tab === "profile"} onClick={() => setTab("profile")} />
         </div>
       </nav>
     </div>
