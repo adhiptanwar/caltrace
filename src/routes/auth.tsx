@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import logoBlack from "@/assets/trace-mark-black.png.asset.json";
+import logoWhite from "@/assets/trace-mark-white.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
