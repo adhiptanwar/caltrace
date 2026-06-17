@@ -932,6 +932,36 @@ function WeightView({ weights, maintenance, goalKg, meals, onChange }: { weights
   const first = filtered[0];
   const delta = latest && first ? (Number(latest.weight_kg) - Number(first.weight_kg)) : 0;
 
+  // Goal projection: avg cal intake over last 14d vs maintenance
+  const projection = useMemo(() => {
+    if (!latest || goalKg == null || maintenance == null) return null;
+    const currentKg = Number(latest.weight_kg);
+    const diffKg = currentKg - goalKg;
+    if (Math.abs(diffKg) < 0.05) return { reached: true, days: 0, deficit: 0, avgIntake: maintenance };
+    const days = 14;
+    const since = Date.now() - days * 86400_000;
+    const buckets: Record<string, number> = {};
+    for (let i = 0; i < days; i++) {
+      const d = startOfDay(new Date(Date.now() - i * 86400_000)).toISOString();
+      buckets[d] = 0;
+    }
+    meals.forEach((m) => {
+      const t = new Date(m.eaten_at).getTime();
+      if (t < since) return;
+      const k = startOfDay(new Date(m.eaten_at)).toISOString();
+      if (k in buckets) buckets[k] += m.calories || 0;
+    });
+    const vals = Object.values(buckets);
+    const avgIntake = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const deficit = maintenance - avgIntake; // +ve = losing
+    const needLose = diffKg > 0; // need to lose
+    const effective = needLose ? deficit : -deficit; // kcal/day toward goal
+    if (effective <= 0) return { reached: false, days: null, deficit, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
+    // 7700 kcal ≈ 1 kg
+    const daysToGoal = Math.ceil((Math.abs(diffKg) * 7700) / effective);
+    return { reached: false, days: daysToGoal, deficit, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
+  }, [latest, goalKg, maintenance, meals]);
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border bg-card p-5">
