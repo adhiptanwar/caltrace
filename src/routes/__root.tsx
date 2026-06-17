@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { InstallPrompt } from "@/components/install-prompt";
+import { VersionChecker } from "@/components/version-checker";
 
 
 function NotFoundComponent() {
@@ -139,6 +140,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <InstallPrompt />
+      <VersionChecker />
       <Toaster />
     </QueryClientProvider>
 
