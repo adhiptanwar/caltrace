@@ -15,11 +15,15 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer,
-  BarChart, Bar, CartesianGrid,
+  BarChart, Bar, CartesianGrid, ReferenceLine,
 } from "recharts";
-import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight } from "lucide-react";
+import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight, User } from "lucide-react";
 import logoBlack from "@/assets/trace-mark-black.png.asset.json";
 import logoWhite from "@/assets/trace-mark-white.png.asset.json";
+import { getProfile } from "@/lib/profile.functions";
+import { calcBMR, calcTDEE, type ActivityLevel } from "@/lib/health-calc";
+import { ageFromBirthDate } from "@/lib/health-calc";
+import { ProfileView } from "@/components/profile-view";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
@@ -43,8 +47,16 @@ type Meal = {
 };
 
 type Weight = { id: string; weight_kg: number; logged_at: string };
-type TabKey = "today" | "history" | "weight";
-const TABS: TabKey[] = ["today", "history", "weight"];
+type TabKey = "today" | "history" | "weight" | "profile";
+const TABS: TabKey[] = ["today", "history", "weight", "profile"];
+
+type ProfileRow = {
+  gender: "male" | "female" | null;
+  birth_date: string | null;
+  height_cm: number | null;
+  activity_level: ActivityLevel | null;
+  goal_weight_kg: number | null;
+};
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function fmtDay(d: Date) { return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
