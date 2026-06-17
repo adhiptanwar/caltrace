@@ -92,8 +92,9 @@ export function ProfileView({
     const diffKg = effectiveWeight - goalNum;
     if (Math.abs(diffKg) < 0.05) return { reached: true as const };
     const needLose = diffKg > 0;
-    const since = startOfDay(new Date(Date.now() - 13 * 86400_000));
-    const recent = meals.filter((m) => new Date(m.eaten_at) >= since);
+    const windowDays = projWindow === "all" ? null : Number(projWindow);
+    const since = windowDays == null ? null : startOfDay(new Date(Date.now() - (windowDays - 1) * 86400_000));
+    const recent = since ? meals.filter((m) => new Date(m.eaten_at) >= since) : meals;
     if (recent.length === 0) return { reached: false as const, days: null, avgIntake: 0, direction: needLose ? "lose" : "gain" as const };
     const totals = new Map<string, number>();
     recent.forEach((m) => {
@@ -101,12 +102,12 @@ export function ProfileView({
       totals.set(k, (totals.get(k) ?? 0) + (m.calories || 0));
     });
     const avgIntake = Array.from(totals.values()).reduce((a, b) => a + b, 0) / Math.max(totals.size, 1);
-    const deficit = maintenance - avgIntake; // +ve = losing
+    const deficit = maintenance - avgIntake;
     const effective = needLose ? deficit : -deficit;
     if (effective <= 0) return { reached: false as const, days: null, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
     const days = Math.ceil((Math.abs(diffKg) * 7700) / effective);
     return { reached: false as const, days, avgIntake: Math.round(avgIntake), deficit: Math.round(deficit), direction: needLose ? "lose" : "gain" as const };
-  }, [effectiveWeight, goalNum, maintenance, meals]);
+  }, [effectiveWeight, goalNum, maintenance, meals, projWindow]);
 
   const save = useMutation({
     mutationFn: async () => {
