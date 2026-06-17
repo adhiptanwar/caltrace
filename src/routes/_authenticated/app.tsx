@@ -24,6 +24,7 @@ import { getProfile } from "@/lib/profile.functions";
 import { calcBMR, calcTDEE, type ActivityLevel } from "@/lib/health-calc";
 import { ageFromBirthDate } from "@/lib/health-calc";
 import { ProfileView } from "@/components/profile-view";
+import { NotificationPrompt } from "@/components/notification-prompt";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
@@ -197,6 +198,7 @@ function AppPage() {
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full min-h-0 overscroll-none flex flex-col bg-background overflow-hidden touch-none">
+      <NotificationPrompt />
       <header
         className="shrink-0 border-b bg-background/85 backdrop-blur z-30"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
