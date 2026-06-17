@@ -43,20 +43,48 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
-        if (error) throw error;
-        toast.success("Account created");
+        if (error) {
+          const msg = error.message?.toLowerCase() ?? "";
+          if (msg.includes("registered") || msg.includes("exists")) {
+            toast.error("An account with this email already exists. Please sign in.");
+            setMode("signin");
+          } else {
+            toast.error(error.message);
+          }
+          return;
+        }
+        // Supabase returns a user with empty identities[] when email already exists
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          toast.error("An account with this email already exists. Please sign in.");
+          setMode("signin");
+          return;
+        }
+        if (data.session) {
+          toast.success("Welcome to Trace");
+          navigate({ to: "/app", replace: true });
+        } else {
+          toast.success("Check your email to confirm your account");
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          const msg = error.message?.toLowerCase() ?? "";
+          if (msg.includes("invalid") || msg.includes("credentials")) {
+            toast.error("No account found, or wrong password. Please sign up first.");
+          } else {
+            toast.error(error.message);
+          }
+          return;
+        }
+        if (data.session) navigate({ to: "/app", replace: true });
       }
-      navigate({ to: "/app" });
     } catch (err: any) {
-      toast.error(err.message ?? "Authentication failed");
+      toast.error(err?.message ?? "Authentication failed");
     } finally {
       setBusy(false);
     }
