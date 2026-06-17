@@ -462,17 +462,8 @@ function HeightRuler({
 
       {/* Figure: bottom anchored, head at center line */}
       <div className="pointer-events-none absolute left-20 right-20 bottom-0 flex items-end justify-center" style={{ height: "50%" }}>
-        <FigureSvg style={{ height: "100%", width: "auto" }} />
+        <User className="h-full w-auto text-foreground/40 stroke-[1.25]" />
       </div>
     </div>
-  );
-}
-
-function FigureSvg({ style }: { style?: React.CSSProperties }) {
-  return (
-    <svg viewBox="0 0 60 200" style={style} fill="currentColor" className="text-foreground/70">
-      <circle cx="30" cy="14" r="10" />
-      <path d="M14 38 c0 -6 4 -12 16 -12 s16 6 16 12 l-2 30 c0 4 -2 6 -4 8 l-2 14 c0 4 -2 6 -2 10 l4 60 c0 4 -2 6 -6 6 h-4 l-3 -50 h-2 l-3 50 h-4 c-4 0 -6 -2 -6 -6 l4 -60 c0 -4 -2 -6 -2 -10 l-2 -14 c-2 -2 -4 -4 -4 -8 z" />
-    </svg>
   );
 }
