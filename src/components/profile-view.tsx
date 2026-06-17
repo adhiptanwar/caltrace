@@ -28,9 +28,18 @@ type Profile = {
 
 type Meal = { calories: number; eaten_at: string };
 
+
 const MIN_CM = 120;
 const MAX_CM = 220;
 const TICK_PX = 6; // px per cm on the ruler
+
+const ACTIVITY_DETAILS: Record<ActivityLevel, { icon: React.ComponentType<any>; label: string; desc: string }> = {
+  sedentary: { icon: Briefcase, label: "Sedentary", desc: "Office job" },
+  light: { icon: Activity, label: "Light", desc: "1-2 days/wk" },
+  moderate: { icon: Dumbbell, label: "Moderate", desc: "3-5 days/wk" },
+  heavy: { icon: Flame, label: "Active", desc: "6-7 days/wk" },
+  athlete: { icon: Trophy, label: "Athlete", desc: "2x per day" },
+};
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
