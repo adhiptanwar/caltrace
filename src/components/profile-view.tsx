@@ -214,7 +214,7 @@ export function ProfileView({
             value={birthDate}
             max={new Date().toISOString().slice(0, 10)}
             onChange={(e) => setBirthDate(e.target.value)}
-            className="h-12 rounded-xl w-full min-w-0 block text-base font-semibold px-3 py-0 text-center border-border bg-card shadow-none focus-visible:ring-1 focus-visible:ring-ring appearance-none"
+            className="h-12 rounded-xl w-full min-w-0 flex items-center justify-center text-base font-semibold px-3 py-0 text-center border-border bg-card shadow-none focus-visible:ring-1 focus-visible:ring-ring appearance-none [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:h-5 [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:flex [&::-webkit-date-and-time-value]:items-center [&::-webkit-date-and-time-value]:justify-center"
           />
           {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
         </Section>
