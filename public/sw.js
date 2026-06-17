@@ -2,11 +2,18 @@
 // Intentionally does NOT cache the app shell (no offline behavior).
 
 self.addEventListener("install", () => {
-  self.skipWaiting();
+  // Do NOT auto-skipWaiting — let the page prompt the user, then
+  // post {type:'SKIP_WAITING'} when they accept.
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("push", (event) => {

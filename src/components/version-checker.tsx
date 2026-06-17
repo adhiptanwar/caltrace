@@ -26,6 +26,7 @@ export function VersionChecker() {
   const updateAvailableRef = useRef(false);
   const toastShownRef = useRef(false);
   const notificationShownRef = useRef(false);
+  const reloadingRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -45,7 +46,23 @@ export function VersionChecker() {
       // Storage may be unavailable in private browsing.
     }
 
-    const reload = () => window.location.replace(`/app?updated=${Date.now()}`);
+    async function applyUpdate() {
+      if (reloadingRef.current) return;
+      reloadingRef.current = true;
+      try {
+        if (canUseServiceWorkerHere()) {
+          const reg = await navigator.serviceWorker.getRegistration("/");
+          if (reg?.waiting) {
+            reg.waiting.postMessage({ type: "SKIP_WAITING" });
+            // controllerchange handler will reload
+            return;
+          }
+        }
+      } catch {
+        // fall through to hard reload
+      }
+      window.location.replace(`/app?updated=${Date.now()}`);
+    }
 
     function showUpdateToast() {
       if (toastShownRef.current) return;
@@ -55,7 +72,9 @@ export function VersionChecker() {
         duration: Infinity,
         action: {
           label: "Update now",
-          onClick: reload,
+          onClick: () => {
+            void applyUpdate();
+          },
         },
       });
     }
@@ -66,7 +85,10 @@ export function VersionChecker() {
       if (!canUseServiceWorkerHere()) return false;
 
       try {
-        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        const reg = await navigator.serviceWorker.register(
+          `/sw.js?v=${CURRENT_BUILD_ID}`,
+          { scope: "/" },
+        );
         await reg.showNotification("New version available", {
           body: "Tap to update Trace.",
           icon: "/icon-192.png",
@@ -79,6 +101,40 @@ export function VersionChecker() {
       } catch {
         return false;
       }
+    }
+
+    // ===== Service worker update lifecycle (canonical pattern) =====
+    if (canUseServiceWorkerHere()) {
+      // Reload exactly once when the new SW takes control.
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloadingRef.current) {
+          window.location.replace(`/app?updated=${Date.now()}`);
+        }
+      });
+
+      // Register with a versioned URL so each deploy is a byte-different SW
+      // → triggers updatefound automatically.
+      navigator.serviceWorker
+        .register(`/sw.js?v=${CURRENT_BUILD_ID}`, { scope: "/" })
+        .then((reg) => {
+          // If a new SW is already waiting from a previous tab, prompt now.
+          if (reg.waiting && navigator.serviceWorker.controller) {
+            void handleUpdateAvailable(CURRENT_BUILD_ID);
+          }
+          reg.addEventListener("updatefound", () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener("statechange", () => {
+              if (
+                newWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                void handleUpdateAvailable(CURRENT_BUILD_ID);
+              }
+            });
+          });
+        })
+        .catch(() => undefined);
     }
 
     async function handleUpdateAvailable(nextBuildId: string) {
