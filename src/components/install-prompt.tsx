@@ -146,10 +146,10 @@ export function InstallPrompt() {
         ) : null}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="outline"
             onClick={dismiss}
-            className="focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+            className="border-2 border-border"
           >
             Not now
           </Button>
