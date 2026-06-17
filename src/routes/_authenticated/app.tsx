@@ -757,7 +757,7 @@ function Field({ label, value, onChange }: { label: string; value: number; onCha
 
 /* ---------------- History ---------------- */
 
-function HistoryView({ meals, onChange }: { meals: Meal[]; onChange: () => void }) {
+function HistoryView({ meals, maintenance, onChange }: { meals: Meal[]; maintenance: number | null; onChange: () => void }) {
   const [range, setRange] = useState<"7" | "30" | "all">("7");
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [dayOpen, setDayOpen] = useState<string | null>(null);
