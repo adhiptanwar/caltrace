@@ -977,6 +977,39 @@ function WeightView({ weights, maintenance, goalKg, meals, onChange }: { weights
         )}
       </div>
 
+      {goalKg != null && latest && (
+        <div className="rounded-2xl border bg-card p-5">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Goal</div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
+                {goalKg.toFixed(1)} <span className="text-sm text-muted-foreground font-normal">kg</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">To go</div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
+                {(Number(latest.weight_kg) - goalKg).toFixed(1)}
+                <span className="text-sm text-muted-foreground font-normal"> kg</span>
+              </div>
+            </div>
+          </div>
+          {projection && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              {projection.reached
+                ? "Goal reached 🎯"
+                : projection.days == null
+                ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
+                : (() => {
+                    const d = projection.days;
+                    const eta = new Date(Date.now() + d * 86400_000);
+                    return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
+                  })()}
+            </div>
+          )}
+        </div>
+      )}
+
       <form onSubmit={submit} className="flex gap-2">
         <Input
           type="number"
