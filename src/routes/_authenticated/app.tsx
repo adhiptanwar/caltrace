@@ -246,6 +246,8 @@ function AppPage() {
         {tab === "profile" && (
           <ProfileView
             latestWeightKg={latestWeightKg}
+            maintenance={maintenance}
+            meals={mealsQ.data ?? []}
             onChange={() => {
               qc.invalidateQueries({ queryKey: ["weights"] });
               qc.invalidateQueries({ queryKey: ["profile"] });
