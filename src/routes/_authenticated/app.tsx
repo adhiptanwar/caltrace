@@ -15,11 +15,15 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer,
-  BarChart, Bar, CartesianGrid,
+  BarChart, Bar, CartesianGrid, ReferenceLine,
 } from "recharts";
-import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight } from "lucide-react";
+import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight, User } from "lucide-react";
 import logoBlack from "@/assets/trace-mark-black.png.asset.json";
 import logoWhite from "@/assets/trace-mark-white.png.asset.json";
+import { getProfile } from "@/lib/profile.functions";
+import { calcBMR, calcTDEE, type ActivityLevel } from "@/lib/health-calc";
+import { ageFromBirthDate } from "@/lib/health-calc";
+import { ProfileView } from "@/components/profile-view";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
@@ -43,8 +47,16 @@ type Meal = {
 };
 
 type Weight = { id: string; weight_kg: number; logged_at: string };
-type TabKey = "today" | "history" | "weight";
-const TABS: TabKey[] = ["today", "history", "weight"];
+type TabKey = "today" | "history" | "weight" | "profile";
+const TABS: TabKey[] = ["today", "history", "weight", "profile"];
+
+type ProfileRow = {
+  gender: "male" | "female" | null;
+  birth_date: string | null;
+  height_cm: number | null;
+  activity_level: ActivityLevel | null;
+  goal_weight_kg: number | null;
+};
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function fmtDay(d: Date) { return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
@@ -101,6 +113,30 @@ function AppPage() {
     queryKey: ["weights"],
     queryFn: () => listWeightsFn({ data: {} }) as Promise<Weight[]>,
   });
+  const getProfileFn = useServerFnTanstack(getProfile);
+  const profileQ = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => (getProfileFn as any)() as Promise<ProfileRow | null>,
+  });
+
+  const latestWeightKg = useMemo(() => {
+    const ws = weightsQ.data ?? [];
+    if (ws.length === 0) return null;
+    return Number(ws[ws.length - 1].weight_kg);
+  }, [weightsQ.data]);
+
+  const maintenance = useMemo(() => {
+    const p = profileQ.data;
+    if (!p) return null;
+    const age = ageFromBirthDate(p.birth_date);
+    const bmr = calcBMR({
+      gender: p.gender,
+      weight_kg: latestWeightKg,
+      height_cm: p.height_cm,
+      age,
+    });
+    return calcTDEE(bmr, p.activity_level);
+  }, [profileQ.data, latestWeightKg]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -183,7 +219,7 @@ function AppPage() {
       </header>
 
       <main
-        className="min-h-0 flex-1 overflow-hidden overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
@@ -197,9 +233,24 @@ function AppPage() {
         {tab === "today" && (
           <TodayView meals={mealsQ.data ?? []} loading={mealsQ.isLoading} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />
         )}
-        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />}
+        {tab === "history" && <HistoryView meals={mealsQ.data ?? []} maintenance={maintenance} onChange={() => qc.invalidateQueries({ queryKey: ["meals"] })} />}
         {tab === "weight" && (
-          <WeightView weights={weightsQ.data ?? []} onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })} />
+          <WeightView
+            weights={weightsQ.data ?? []}
+            maintenance={maintenance}
+            goalKg={profileQ.data?.goal_weight_kg ?? null}
+            meals={mealsQ.data ?? []}
+            onChange={() => qc.invalidateQueries({ queryKey: ["weights"] })}
+          />
+        )}
+        {tab === "profile" && (
+          <ProfileView
+            latestWeightKg={latestWeightKg}
+            onChange={() => {
+              qc.invalidateQueries({ queryKey: ["weights"] });
+              qc.invalidateQueries({ queryKey: ["profile"] });
+            }}
+          />
         )}
       </main>
 
@@ -207,10 +258,11 @@ function AppPage() {
         className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
         style={{ bottom: "max(calc(env(safe-area-inset-bottom) - 8px), 0.75rem)" }}
       >
-        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-2 py-2 flex items-center gap-1.5">
+        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1.5 py-1.5 flex items-center gap-1">
           <NavBtn label="Today" icon={<Home className="h-[18px] w-[18px]" />} active={tab === "today"} onClick={() => setTab("today")} />
           <NavBtn label="History" icon={<BarChart3 className="h-[18px] w-[18px]" />} active={tab === "history"} onClick={() => setTab("history")} />
           <NavBtn label="Weight" icon={<Scale className="h-[18px] w-[18px]" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+          <NavBtn label="Profile" icon={<User className="h-[18px] w-[18px]" />} active={tab === "profile"} onClick={() => setTab("profile")} />
         </div>
       </nav>
     </div>
@@ -705,7 +757,7 @@ function Field({ label, value, onChange }: { label: string; value: number; onCha
 
 /* ---------------- History ---------------- */
 
-function HistoryView({ meals, onChange }: { meals: Meal[]; onChange: () => void }) {
+function HistoryView({ meals, maintenance, onChange }: { meals: Meal[]; maintenance: number | null; onChange: () => void }) {
   const [range, setRange] = useState<"7" | "30" | "all">("7");
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [dayOpen, setDayOpen] = useState<string | null>(null);
@@ -776,6 +828,15 @@ function HistoryView({ meals, onChange }: { meals: Meal[]; onChange: () => void 
                 cursor={{ fill: "var(--accent)" }}
               />
               <Bar dataKey="kcal" fill="var(--foreground)" radius={[4, 4, 0, 0]} />
+              {maintenance != null && (
+                <ReferenceLine
+                  y={maintenance}
+                  stroke="var(--primary)"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: `Maintenance ${maintenance}`, position: "insideTopRight", fill: "var(--primary)", fontSize: 10 }}
+                />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -830,7 +891,7 @@ function HistoryView({ meals, onChange }: { meals: Meal[]; onChange: () => void 
 
 /* ---------------- Weight ---------------- */
 
-function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => void }) {
+function WeightView({ weights, maintenance, goalKg, meals, onChange }: { weights: Weight[]; maintenance: number | null; goalKg: number | null; meals: Meal[]; onChange: () => void }) {
   const [input, setInput] = useState("");
   const [range, setRange] = useState<"7" | "30" | "all">("30");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -871,6 +932,36 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
   const first = filtered[0];
   const delta = latest && first ? (Number(latest.weight_kg) - Number(first.weight_kg)) : 0;
 
+  // Goal projection: avg cal intake over last 14d vs maintenance
+  const projection = useMemo(() => {
+    if (!latest || goalKg == null || maintenance == null) return null;
+    const currentKg = Number(latest.weight_kg);
+    const diffKg = currentKg - goalKg;
+    if (Math.abs(diffKg) < 0.05) return { reached: true, days: 0, deficit: 0, avgIntake: maintenance };
+    const days = 14;
+    const since = Date.now() - days * 86400_000;
+    const buckets: Record<string, number> = {};
+    for (let i = 0; i < days; i++) {
+      const d = startOfDay(new Date(Date.now() - i * 86400_000)).toISOString();
+      buckets[d] = 0;
+    }
+    meals.forEach((m) => {
+      const t = new Date(m.eaten_at).getTime();
+      if (t < since) return;
+      const k = startOfDay(new Date(m.eaten_at)).toISOString();
+      if (k in buckets) buckets[k] += m.calories || 0;
+    });
+    const vals = Object.values(buckets);
+    const avgIntake = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const deficit = maintenance - avgIntake; // +ve = losing
+    const needLose = diffKg > 0; // need to lose
+    const effective = needLose ? deficit : -deficit; // kcal/day toward goal
+    if (effective <= 0) return { reached: false, days: null, deficit, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
+    // 7700 kcal ≈ 1 kg
+    const daysToGoal = Math.ceil((Math.abs(diffKg) * 7700) / effective);
+    return { reached: false, days: daysToGoal, deficit, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
+  }, [latest, goalKg, maintenance, meals]);
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border bg-card p-5">
@@ -885,6 +976,39 @@ function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => 
           </div>
         )}
       </div>
+
+      {goalKg != null && latest && (
+        <div className="rounded-2xl border bg-card p-5">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Goal</div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
+                {goalKg.toFixed(1)} <span className="text-sm text-muted-foreground font-normal">kg</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">To go</div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums">
+                {(Number(latest.weight_kg) - goalKg).toFixed(1)}
+                <span className="text-sm text-muted-foreground font-normal"> kg</span>
+              </div>
+            </div>
+          </div>
+          {projection && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              {projection.reached
+                ? "Goal reached 🎯"
+                : projection.days == null
+                ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
+                : (() => {
+                    const d = projection.days;
+                    const eta = new Date(Date.now() + d * 86400_000);
+                    return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
+                  })()}
+            </div>
+          )}
+        </div>
+      )}
 
       <form onSubmit={submit} className="flex gap-2">
         <Input
