@@ -13,7 +13,6 @@ import {
   cmToFtIn,
   type ActivityLevel,
 } from "@/lib/health-calc";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -65,6 +64,8 @@ export function ProfileView({
   const [goalKg, setGoalKg] = useState<string>("");
   const [weightInput, setWeightInput] = useState<string>("");
   const [unit, setUnit] = useState<"cm" | "ft">("cm");
+  const [projWindow, setProjWindow] = useState<"7" | "30" | "all">("all");
+  const hydrated = useRef(false);
 
   useEffect(() => {
     if (!p) return;
@@ -73,6 +74,7 @@ export function ProfileView({
     if (p.height_cm) setHeightCm(Number(p.height_cm));
     if (p.activity_level) setActivity(p.activity_level);
     if (p.goal_weight_kg != null) setGoalKg(String(p.goal_weight_kg));
+    requestAnimationFrame(() => { hydrated.current = true; });
   }, [p?.gender, p?.birth_date, p?.height_cm, p?.activity_level, p?.goal_weight_kg]);
 
   const effectiveWeight = latestWeightKg ?? (Number(weightInput) || null);
@@ -89,8 +91,9 @@ export function ProfileView({
     const diffKg = effectiveWeight - goalNum;
     if (Math.abs(diffKg) < 0.05) return { reached: true as const };
     const needLose = diffKg > 0;
-    const since = startOfDay(new Date(Date.now() - 13 * 86400_000));
-    const recent = meals.filter((m) => new Date(m.eaten_at) >= since);
+    const windowDays = projWindow === "all" ? null : Number(projWindow);
+    const since = windowDays == null ? null : startOfDay(new Date(Date.now() - (windowDays - 1) * 86400_000));
+    const recent = since ? meals.filter((m) => new Date(m.eaten_at) >= since) : meals;
     if (recent.length === 0) return { reached: false as const, days: null, avgIntake: 0, direction: needLose ? "lose" : "gain" as const };
     const totals = new Map<string, number>();
     recent.forEach((m) => {
@@ -98,38 +101,64 @@ export function ProfileView({
       totals.set(k, (totals.get(k) ?? 0) + (m.calories || 0));
     });
     const avgIntake = Array.from(totals.values()).reduce((a, b) => a + b, 0) / Math.max(totals.size, 1);
-    const deficit = maintenance - avgIntake; // +ve = losing
+    const deficit = maintenance - avgIntake;
     const effective = needLose ? deficit : -deficit;
     if (effective <= 0) return { reached: false as const, days: null, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
     const days = Math.ceil((Math.abs(diffKg) * 7700) / effective);
     return { reached: false as const, days, avgIntake: Math.round(avgIntake), deficit: Math.round(deficit), direction: needLose ? "lose" : "gain" as const };
-  }, [effectiveWeight, goalNum, maintenance, meals]);
+  }, [effectiveWeight, goalNum, maintenance, meals, projWindow]);
 
   const save = useMutation({
-    mutationFn: async () => {
-      const goal = Number(goalKg);
-      await saveFn({
-        data: {
-          gender,
-          birth_date: birthDate || null,
-          height_cm: heightCm,
-          activity_level: activity,
-          goal_weight_kg: goal > 0 ? goal : null,
-        },
-      });
-      if (latestWeightKg == null && weightInput) {
-        const w = Number(weightInput);
-        if (w > 0) await addWeightFn({ data: { weight_kg: w } });
-      }
+    mutationFn: async (payload: {
+      gender: "male" | "female";
+      birth_date: string | null;
+      height_cm: number;
+      activity_level: ActivityLevel;
+      goal_weight_kg: number | null;
+    }) => {
+      await saveFn({ data: payload });
     },
     onSuccess: () => {
-      toast.success("Profile saved");
       qc.invalidateQueries({ queryKey: ["profile"] });
-      qc.invalidateQueries({ queryKey: ["weights"] });
       onChange();
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Autosave profile fields (debounced) once initial data is hydrated.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const goal = Number(goalKg);
+    const payload = {
+      gender,
+      birth_date: birthDate || null,
+      height_cm: heightCm,
+      activity_level: activity,
+      goal_weight_kg: goal > 0 ? goal : null,
+    };
+    const t = setTimeout(() => save.mutate(payload), 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gender, birthDate, heightCm, activity, goalKg]);
+
+  // Autosave initial weight log if user enters one (only when no prior logs).
+  useEffect(() => {
+    if (!hydrated.current) return;
+    if (latestWeightKg != null) return;
+    const w = Number(weightInput);
+    if (!(w > 0)) return;
+    const t = setTimeout(async () => {
+      try {
+        await addWeightFn({ data: { weight_kg: w } });
+        qc.invalidateQueries({ queryKey: ["weights"] });
+        onChange();
+      } catch (e: any) {
+        toast.error(e.message);
+      }
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weightInput, latestWeightKg]);
 
   if (profileQ.isLoading) {
     return (
@@ -255,26 +284,43 @@ export function ProfileView({
               </div>
             </div>
           )}
-          {projection && (
-            <div className="text-xs text-muted-foreground">
-              {projection.reached
-                ? "Goal reached 🎯"
-                : projection.days == null
-                ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
-                : (() => {
-                    const d = projection.days;
-                    const eta = new Date(Date.now() + d * 86400_000);
-                    return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
-                  })()}
+          {effectiveWeight != null && goalNum > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg intake window</Label>
+                <div className="inline-flex rounded-lg border p-0.5 bg-muted text-[11px]">
+                  {([
+                    { v: "7", l: "7d" },
+                    { v: "30", l: "30d" },
+                    { v: "all", l: "All" },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.v}
+                      onClick={() => setProjWindow(o.v)}
+                      className={`px-2 py-0.5 rounded-md transition-colors ${projWindow === o.v ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                    >
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {projection && (
+                <div className="text-xs text-muted-foreground">
+                  {projection.reached
+                    ? "Goal reached 🎯"
+                    : projection.days == null
+                    ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
+                    : (() => {
+                        const d = projection.days;
+                        const eta = new Date(Date.now() + d * 86400_000);
+                        return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
+                      })()}
+                </div>
+              )}
             </div>
           )}
         </div>
       </Section>
-
-      <Button onClick={() => save.mutate()} disabled={save.isPending} className="h-11 w-full rounded-xl">
-        {save.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-        Save profile
-      </Button>
     </div>
   );
 }
