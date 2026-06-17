@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import logoBlack from "@/assets/trace-mark-black.png.asset.json";
+import logoWhite from "@/assets/trace-mark-white.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -107,7 +109,9 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
       <div className="w-full max-w-sm">
-        <div className="mb-10 text-center">
+        <div className="mb-10 flex flex-col items-center text-center">
+          <img src={logoBlack.url} alt="Trace" className="h-14 w-14 mb-4 dark:hidden" />
+          <img src={logoWhite.url} alt="Trace" className="h-14 w-14 mb-4 hidden dark:block" />
           <h1 className="text-3xl font-semibold tracking-tight">Trace</h1>
           <p className="mt-2 text-sm text-muted-foreground">Food & weight, quietly tracked.</p>
         </div>

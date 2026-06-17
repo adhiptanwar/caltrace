@@ -18,6 +18,8 @@ import {
   BarChart, Bar, CartesianGrid,
 } from "recharts";
 import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight } from "lucide-react";
+import logoBlack from "@/assets/trace-mark-black.png.asset.json";
+import logoWhite from "@/assets/trace-mark-white.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
@@ -164,7 +166,11 @@ function AppPage() {
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="mx-auto max-w-xl px-5 h-14 flex items-center justify-between">
-          <h1 className="text-base font-semibold tracking-tight">Trace</h1>
+          <div className="flex items-center gap-2">
+            <img src={logoBlack.url} alt="" className="h-6 w-6 dark:hidden" />
+            <img src={logoWhite.url} alt="" className="h-6 w-6 hidden dark:block" />
+            <h1 className="text-base font-semibold tracking-tight">Trace</h1>
+          </div>
           <div className="flex items-center gap-1">
             <button onClick={toggle} aria-label="Toggle theme" className="text-muted-foreground hover:text-foreground transition-colors p-2 -mr-1">
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
