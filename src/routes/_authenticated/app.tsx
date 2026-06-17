@@ -219,7 +219,7 @@ function AppPage() {
       </header>
 
       <main
-        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-y"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
