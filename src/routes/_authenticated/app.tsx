@@ -219,9 +219,11 @@ function AppPage() {
       </header>
 
       <main
-        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-y"
+        className={`min-h-0 flex-1 overscroll-none mx-auto w-full max-w-xl px-5 pt-4 ${
+          tab === "profile" ? "overflow-hidden touch-none" : "overflow-y-auto touch-pan-y"
+        }`}
         style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
+          paddingBottom: tab === "profile" ? "0" : "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
           transition: animating ? "transform 180ms ease-out" : "none",
           willChange: "transform",
