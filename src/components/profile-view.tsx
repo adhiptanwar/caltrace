@@ -77,6 +77,7 @@ export function ProfileView({
   const [weightInput, setWeightInput] = useState<string>("");
   const [unit, setUnit] = useState<"cm" | "ft">("cm");
   const [projWindow, setProjWindow] = useState<"7" | "30" | "all">("all");
+  const [editOpen, setEditOpen] = useState(false);
   const hydrated = useRef(false);
 
   useEffect(() => {
