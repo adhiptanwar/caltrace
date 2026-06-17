@@ -22,19 +22,25 @@ self.addEventListener("push", (event) => {
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: data.tag || "trace-reminder",
-    data: { url: data.url || "/app" },
+    data: { url: data.url || "/app", reload: data.reload === true },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/app";
+  const data = event.notification.data || {};
+  const baseUrl = data.url || "/app";
+  const url = data.reload
+    ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}updated=${Date.now()}`
+    : baseUrl;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
         if ("focus" in client) {
-          return client.navigate(url).then((navigatedClient) => (navigatedClient || client).focus());
+          return client
+            .navigate(url)
+            .then((navigatedClient) => (navigatedClient || client).focus());
         }
       }
       if (self.clients.openWindow) return self.clients.openWindow(url);

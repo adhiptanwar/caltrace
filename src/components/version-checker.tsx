@@ -5,6 +5,22 @@ declare const __APP_BUILD_ID__: string;
 
 const POLL_INTERVAL_MS = 30_000;
 const CURRENT_BUILD_ID = __APP_BUILD_ID__;
+const LAST_SEEN_BUILD_KEY = "trace.lastSeenBuildId";
+
+function canUseServiceWorkerHere() {
+  if (!("serviceWorker" in navigator)) return false;
+  const host = window.location.hostname;
+  if (window.self !== window.top) return false;
+  if (host.startsWith("id-preview--") || host.startsWith("preview--")) return false;
+  if (host === "lovableproject.com" || host.endsWith(".lovableproject.com")) {
+    return false;
+  }
+  if (host === "lovableproject-dev.com" || host.endsWith(".lovableproject-dev.com")) {
+    return false;
+  }
+  if (host === "beta.lovable.dev" || host.endsWith(".beta.lovable.dev")) return false;
+  return true;
+}
 
 export function VersionChecker() {
   const updateAvailableRef = useRef(false);
@@ -17,34 +33,46 @@ export function VersionChecker() {
 
     let cancelled = false;
 
-    const reload = () => window.location.reload();
+    try {
+      const lastSeenBuildId = window.localStorage.getItem(LAST_SEEN_BUILD_KEY);
+      if (lastSeenBuildId && lastSeenBuildId !== CURRENT_BUILD_ID) {
+        toast.success("Trace updated", {
+          description: "You're now using the latest version.",
+        });
+      }
+      window.localStorage.setItem(LAST_SEEN_BUILD_KEY, CURRENT_BUILD_ID);
+    } catch {
+      // Storage may be unavailable in private browsing.
+    }
+
+    const reload = () => window.location.replace(`/app?updated=${Date.now()}`);
 
     function showUpdateToast() {
       if (toastShownRef.current) return;
       toastShownRef.current = true;
       toast("New version available", {
-        description: "Reload to get the latest updates.",
+        description: "Update Trace to get the latest changes.",
         duration: Infinity,
         action: {
-          label: "Reload",
+          label: "Update now",
           onClick: reload,
         },
       });
     }
 
-    async function showBackgroundNotification() {
+    async function showBackgroundNotification(nextBuildId: string) {
       if (notificationShownRef.current) return false;
       if (!("Notification" in window) || Notification.permission !== "granted") return false;
-      if (!("serviceWorker" in navigator)) return false;
+      if (!canUseServiceWorkerHere()) return false;
 
       try {
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         await reg.showNotification("New version available", {
-          body: "Tap to refresh Trace.",
+          body: "Tap to update Trace.",
           icon: "/icon-192.png",
           badge: "/icon-192.png",
-          tag: `trace-update-${CURRENT_BUILD_ID}`,
-          data: { url: "/app", reload: true, version: CURRENT_BUILD_ID },
+          tag: `trace-update-${nextBuildId}`,
+          data: { url: "/app", reload: true, version: nextBuildId },
         });
         notificationShownRef.current = true;
         return true;
@@ -53,24 +81,36 @@ export function VersionChecker() {
       }
     }
 
-    async function handleUpdateAvailable() {
+    async function handleUpdateAvailable(nextBuildId: string) {
       updateAvailableRef.current = true;
+      try {
+        window.localStorage.setItem("trace.pendingBuildId", nextBuildId);
+      } catch {
+        // ignore
+      }
       if (document.visibilityState === "visible") {
         showUpdateToast();
         return;
       }
-      await showBackgroundNotification();
+      await showBackgroundNotification(nextBuildId);
     }
 
     async function check() {
       if (updateAvailableRef.current || cancelled) return;
       try {
-        void navigator.serviceWorker?.getRegistration("/").then((reg) => reg?.update()).catch(() => undefined);
-        const res = await fetch("/api/public/version", { cache: "no-store" });
+        if (canUseServiceWorkerHere()) {
+          void navigator.serviceWorker
+            .getRegistration("/")
+            .then((reg) => reg?.update())
+            .catch(() => undefined);
+        }
+        const res = await fetch(`/api/public/version?t=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const data = (await res.json()) as { buildId?: string };
         if (!data.buildId || data.buildId === CURRENT_BUILD_ID) return;
-        await handleUpdateAvailable();
+        await handleUpdateAvailable(data.buildId);
       } catch {
         // network issue — try again next tick
       }
@@ -84,21 +124,25 @@ export function VersionChecker() {
       if (updateAvailableRef.current) showUpdateToast();
       else check();
     };
+    const onWake = () => {
+      if (updateAvailableRef.current) showUpdateToast();
+      else check();
+    };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", check);
-    window.addEventListener("pageshow", check);
-    window.addEventListener("online", check);
-    document.addEventListener("resume", check);
+    window.addEventListener("focus", onWake);
+    window.addEventListener("pageshow", onWake);
+    window.addEventListener("online", onWake);
+    document.addEventListener("resume", onWake);
 
     return () => {
       cancelled = true;
       window.clearTimeout(initialTimer);
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", check);
-      window.removeEventListener("pageshow", check);
-      window.removeEventListener("online", check);
-      document.removeEventListener("resume", check);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("pageshow", onWake);
+      window.removeEventListener("online", onWake);
+      document.removeEventListener("resume", onWake);
     };
   }, []);
 
