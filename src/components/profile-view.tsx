@@ -78,6 +78,7 @@ export function ProfileView({
   const hydrated = useRef(false);
 
   useEffect(() => {
+    if (hydrated.current) return;
     if (!p) return;
     if (p.gender) setGender(p.gender);
     if (p.birth_date) setBirthDate(p.birth_date);
@@ -85,7 +86,7 @@ export function ProfileView({
     if (p.activity_level) setActivity(p.activity_level);
     if (p.goal_weight_kg != null) setGoalKg(String(p.goal_weight_kg));
     requestAnimationFrame(() => { hydrated.current = true; });
-  }, [p?.gender, p?.birth_date, p?.height_cm, p?.activity_level, p?.goal_weight_kg]);
+  }, [p]);
 
   const effectiveWeight = latestWeightKg ?? (Number(weightInput) || null);
   const age = ageFromBirthDate(birthDate);
