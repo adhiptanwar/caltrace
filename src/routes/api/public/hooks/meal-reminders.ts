@@ -60,9 +60,16 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
         const { data: subs, error } = await supabaseAdmin
           .from("push_subscriptions")
           .select(
-            "id, user_id, endpoint, p256dh, auth, timezone, last_sent_breakfast, last_sent_lunch, last_sent_dinner",
+            "id, user_id, endpoint, p256dh, auth, timezone, last_sent_breakfast, last_sent_lunch, last_sent_dinner, last_sent_weight",
           );
         if (error) return Response.json({ error: error.message }, { status: 500 });
+
+        // Helper: yesterday's local date string (YYYY-MM-DD) given today's parts
+        function prevDate(dateStr: string): string {
+          const d = new Date(`${dateStr}T12:00:00Z`);
+          d.setUTCDate(d.getUTCDate() - 1);
+          return d.toISOString().slice(0, 10);
+        }
 
         let sent = 0;
         let skipped = 0;
@@ -74,6 +81,57 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
             continue;
           }
           const slot = slotForLocalTime(parts.hour, parts.minute);
+
+          // --- Weight reminder: around 8am local, only if no weight logged yesterday ---
+          const isWeightWindow =
+            Math.abs(parts.hour * 60 + parts.minute - (8 * 60)) <= WINDOW_MIN;
+          if (isWeightWindow && sub.last_sent_weight !== parts.date) {
+            const yesterday = prevDate(parts.date);
+            // Query a wide UTC window covering yesterday in user's tz
+            const fromUtc = new Date(now.getTime() - 60 * 60 * 60 * 1000).toISOString();
+            const toUtc = new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
+            const { data: weights } = await supabaseAdmin
+              .from("weights")
+              .select("logged_at")
+              .eq("user_id", sub.user_id)
+              .gte("logged_at", fromUtc)
+              .lte("logged_at", toUtc);
+
+            const loggedYesterday = (weights ?? []).some((w) => {
+              const p = localParts(sub.timezone || "UTC", new Date(w.logged_at));
+              return p && p.date === yesterday;
+            });
+
+            if (loggedYesterday) {
+              await supabaseAdmin
+                .from("push_subscriptions")
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .update({ last_sent_weight: parts.date } as any)
+                .eq("id", sub.id);
+            } else {
+              const result = await sendPush(
+                { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+                {
+                  title: "Time to weigh in ⚖️",
+                  body: "Log today's weight to keep your trend up to date.",
+                  url: "/app",
+                  tag: `trace-weight-${parts.date}`,
+                },
+              );
+              if (result.gone) {
+                await supabaseAdmin.from("push_subscriptions").delete().eq("id", sub.id);
+                continue;
+              } else if (result.ok) {
+                await supabaseAdmin
+                  .from("push_subscriptions")
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  .update({ last_sent_weight: parts.date } as any)
+                  .eq("id", sub.id);
+                sent++;
+              }
+            }
+          }
+
           if (!slot) {
             skipped++;
             continue;

@@ -107,6 +107,7 @@ export type Database = {
           last_sent_breakfast: string | null
           last_sent_dinner: string | null
           last_sent_lunch: string | null
+          last_sent_weight: string | null
           p256dh: string
           timezone: string
           user_id: string
@@ -119,6 +120,7 @@ export type Database = {
           last_sent_breakfast?: string | null
           last_sent_dinner?: string | null
           last_sent_lunch?: string | null
+          last_sent_weight?: string | null
           p256dh: string
           timezone?: string
           user_id: string
@@ -131,6 +133,7 @@ export type Database = {
           last_sent_breakfast?: string | null
           last_sent_dinner?: string | null
           last_sent_lunch?: string | null
+          last_sent_weight?: string | null
           p256dh?: string
           timezone?: string
           user_id?: string
