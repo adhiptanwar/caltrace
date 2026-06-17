@@ -113,21 +113,25 @@ export function VersionChecker() {
       if (updateAvailableRef.current) showUpdateToast();
       else check();
     };
+    const onWake = () => {
+      if (updateAvailableRef.current) showUpdateToast();
+      else check();
+    };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", check);
-    window.addEventListener("pageshow", check);
-    window.addEventListener("online", check);
-    document.addEventListener("resume", check);
+    window.addEventListener("focus", onWake);
+    window.addEventListener("pageshow", onWake);
+    window.addEventListener("online", onWake);
+    document.addEventListener("resume", onWake);
 
     return () => {
       cancelled = true;
       window.clearTimeout(initialTimer);
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", check);
-      window.removeEventListener("pageshow", check);
-      window.removeEventListener("online", check);
-      document.removeEventListener("resume", check);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("pageshow", onWake);
+      window.removeEventListener("online", onWake);
+      document.removeEventListener("resume", onWake);
     };
   }, []);
 
