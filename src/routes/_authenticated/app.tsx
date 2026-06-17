@@ -796,7 +796,9 @@ function HistoryView({ meals, maintenance, onChange }: { meals: Meal[]; maintena
     }));
   }, [meals, range]);
 
-  const totalAvg = Math.round(data.reduce((s, d) => s + d.kcal, 0) / Math.max(1, data.length));
+  const todayIso = startOfDay(new Date()).toISOString();
+  const avgDays = data.filter((d) => d.iso !== todayIso && d.kcal > 0);
+  const totalAvg = avgDays.length === 0 ? 0 : Math.round(avgDays.reduce((s, d) => s + d.kcal, 0) / avgDays.length);
 
   const dayMeals = dayOpen
     ? meals.filter((m) => startOfDay(new Date(m.eaten_at)).toISOString() === dayOpen)
