@@ -219,7 +219,7 @@ function AppPage() {
       </header>
 
       <main
-        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-x"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-none mx-auto w-full max-w-xl px-5 pt-4 touch-pan-y"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom) + 6rem)",
           transform: `translate3d(${dragX}px, 0, 0)`,
@@ -246,6 +246,8 @@ function AppPage() {
         {tab === "profile" && (
           <ProfileView
             latestWeightKg={latestWeightKg}
+            maintenance={maintenance}
+            meals={mealsQ.data ?? []}
             onChange={() => {
               qc.invalidateQueries({ queryKey: ["weights"] });
               qc.invalidateQueries({ queryKey: ["profile"] });
@@ -255,14 +257,14 @@ function AppPage() {
       </main>
 
       <nav
-        className="fixed inset-x-0 z-40 flex justify-center pointer-events-none"
+        className="fixed inset-x-0 z-40 flex justify-center pointer-events-none px-3"
         style={{ bottom: "max(calc(env(safe-area-inset-bottom) - 8px), 0.75rem)" }}
       >
-        <div className="pointer-events-auto rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1.5 py-1.5 flex items-center gap-1">
-          <NavBtn label="Today" icon={<Home className="h-[18px] w-[18px]" />} active={tab === "today"} onClick={() => setTab("today")} />
-          <NavBtn label="History" icon={<BarChart3 className="h-[18px] w-[18px]" />} active={tab === "history"} onClick={() => setTab("history")} />
-          <NavBtn label="Weight" icon={<Scale className="h-[18px] w-[18px]" />} active={tab === "weight"} onClick={() => setTab("weight")} />
-          <NavBtn label="Profile" icon={<User className="h-[18px] w-[18px]" />} active={tab === "profile"} onClick={() => setTab("profile")} />
+        <div className="pointer-events-auto w-full max-w-sm rounded-full border bg-background/90 backdrop-blur shadow-lg shadow-black/10 dark:shadow-black/40 px-1 py-1 grid grid-cols-4 gap-0.5">
+          <NavBtn label="Today" icon={<Home className="h-[16px] w-[16px]" />} active={tab === "today"} onClick={() => setTab("today")} />
+          <NavBtn label="History" icon={<BarChart3 className="h-[16px] w-[16px]" />} active={tab === "history"} onClick={() => setTab("history")} />
+          <NavBtn label="Weight" icon={<Scale className="h-[16px] w-[16px]" />} active={tab === "weight"} onClick={() => setTab("weight")} />
+          <NavBtn label="Profile" icon={<User className="h-[16px] w-[16px]" />} active={tab === "profile"} onClick={() => setTab("profile")} />
         </div>
       </nav>
     </div>
@@ -273,12 +275,12 @@ function NavBtn({ label, icon, active, onClick }: { label: string; icon: React.R
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
+      className={`flex items-center justify-center gap-1 px-2 py-2 rounded-full text-xs font-medium transition-colors min-w-0 ${
         active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
       }`}
     >
       {icon}
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
     </button>
   );
 }
@@ -977,38 +979,6 @@ function WeightView({ weights, maintenance, goalKg, meals, onChange }: { weights
         )}
       </div>
 
-      {goalKg != null && latest && (
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">Goal</div>
-              <div className="mt-1 text-2xl font-semibold tabular-nums">
-                {goalKg.toFixed(1)} <span className="text-sm text-muted-foreground font-normal">kg</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">To go</div>
-              <div className="mt-1 text-2xl font-semibold tabular-nums">
-                {(Number(latest.weight_kg) - goalKg).toFixed(1)}
-                <span className="text-sm text-muted-foreground font-normal"> kg</span>
-              </div>
-            </div>
-          </div>
-          {projection && (
-            <div className="mt-3 text-xs text-muted-foreground">
-              {projection.reached
-                ? "Goal reached 🎯"
-                : projection.days == null
-                ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
-                : (() => {
-                    const d = projection.days;
-                    const eta = new Date(Date.now() + d * 86400_000);
-                    return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
-                  })()}
-            </div>
-          )}
-        </div>
-      )}
 
       <form onSubmit={submit} className="flex gap-2">
         <Input
