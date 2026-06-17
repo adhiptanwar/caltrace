@@ -60,9 +60,16 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
         const { data: subs, error } = await supabaseAdmin
           .from("push_subscriptions")
           .select(
-            "id, user_id, endpoint, p256dh, auth, timezone, last_sent_breakfast, last_sent_lunch, last_sent_dinner",
+            "id, user_id, endpoint, p256dh, auth, timezone, last_sent_breakfast, last_sent_lunch, last_sent_dinner, last_sent_weight",
           );
         if (error) return Response.json({ error: error.message }, { status: 500 });
+
+        // Helper: yesterday's local date string (YYYY-MM-DD) given today's parts
+        function prevDate(dateStr: string): string {
+          const d = new Date(`${dateStr}T12:00:00Z`);
+          d.setUTCDate(d.getUTCDate() - 1);
+          return d.toISOString().slice(0, 10);
+        }
 
         let sent = 0;
         let skipped = 0;
