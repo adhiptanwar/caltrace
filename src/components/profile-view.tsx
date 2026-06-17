@@ -250,12 +250,35 @@ export function ProfileView({
           </div>
         }
       >
-        <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
+        <Dialog>
+          <DialogTrigger asChild>
+            <button className="w-full rounded-2xl border bg-card p-4 flex items-center justify-between hover:bg-accent transition-colors">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span className="text-xs">Tap to adjust</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-semibold tabular-nums leading-none">
+                  {unit === "cm" ? heightCm : (() => { const f = cmToFtIn(heightCm); return `${f.ft}'${f.inch}"`; })()}
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+                  {unit === "cm" ? "cm" : "ft / in"}
+                </div>
+              </div>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Set height</DialogTitle>
+            </DialogHeader>
+            <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
+          </DialogContent>
+        </Dialog>
       </Section>
 
       {/* Activity */}
       <Section title="Activity level">
-        <div className="flex gap-2 overflow-x-auto pb-1 snap-x no-scrollbar">
+        <div className="grid grid-cols-5 gap-1.5">
           {ACTIVITY_OPTIONS.map((o) => {
             const details = ACTIVITY_DETAILS[o.value];
             const Icon = details.icon;
@@ -264,15 +287,15 @@ export function ProfileView({
               <button
                 key={o.value}
                 onClick={() => setActivity(o.value)}
-                className={`flex-none w-24 snap-start rounded-xl border p-2.5 flex flex-col items-center text-center transition-colors select-none ${
+                className={`rounded-xl border p-1.5 flex flex-col items-center text-center transition-colors select-none min-w-0 ${
                   active
                     ? "bg-foreground text-background border-foreground font-medium"
                     : "bg-card hover:bg-accent border-border"
                 }`}
               >
-                <Icon className={`h-4 w-4 mb-1.5 ${active ? "text-background" : "text-muted-foreground"}`} />
-                <span className="text-[11px] font-semibold leading-tight">{details.label}</span>
-                <span className={`text-[9px] mt-0.5 leading-tight ${active ? "text-background/80" : "text-muted-foreground"}`}>
+                <Icon className={`h-3.5 w-3.5 mb-1 ${active ? "text-background" : "text-muted-foreground"}`} />
+                <span className="text-[10px] font-semibold leading-tight truncate w-full">{details.label}</span>
+                <span className={`text-[9px] mt-0.5 leading-tight truncate w-full ${active ? "text-background/80" : "text-muted-foreground"}`}>
                   {details.desc}
                 </span>
               </button>
