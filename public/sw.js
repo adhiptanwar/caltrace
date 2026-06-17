@@ -35,13 +35,17 @@ self.addEventListener("notificationclick", (event) => {
     ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}updated=${Date.now()}`
     : baseUrl;
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          return client.navigate(url).then((navigatedClient) => (navigatedClient || client).focus());
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        for (const client of clients) {
+          if ("focus" in client) {
+            return client
+              .navigate(url)
+              .then((navigatedClient) => (navigatedClient || client).focus());
+          }
         }
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
-    }),
+        if (self.clients.openWindow) return self.clients.openWindow(url);
+      }),
   );
 });
