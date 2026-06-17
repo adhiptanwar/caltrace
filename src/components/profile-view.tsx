@@ -65,6 +65,8 @@ export function ProfileView({
   const [goalKg, setGoalKg] = useState<string>("");
   const [weightInput, setWeightInput] = useState<string>("");
   const [unit, setUnit] = useState<"cm" | "ft">("cm");
+  const [projWindow, setProjWindow] = useState<"7" | "30" | "all">("all");
+  const hydrated = useRef(false);
 
   useEffect(() => {
     if (!p) return;
@@ -73,6 +75,7 @@ export function ProfileView({
     if (p.height_cm) setHeightCm(Number(p.height_cm));
     if (p.activity_level) setActivity(p.activity_level);
     if (p.goal_weight_kg != null) setGoalKg(String(p.goal_weight_kg));
+    requestAnimationFrame(() => { hydrated.current = true; });
   }, [p?.gender, p?.birth_date, p?.height_cm, p?.activity_level, p?.goal_weight_kg]);
 
   const effectiveWeight = latestWeightKg ?? (Number(weightInput) || null);
