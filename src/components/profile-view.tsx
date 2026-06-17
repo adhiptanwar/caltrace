@@ -319,9 +319,6 @@ function HeightRuler({
 
   const ftIn = cmToFtIn(value);
 
-  // Figure height relative to head line (positioned at center of container)
-  // Render figure scaled so 220cm fills container
-  const figureH = Math.max(80, Math.min(containerH - 24, (value / MAX_CM) * (containerH - 24)));
 
   return (
     <div
