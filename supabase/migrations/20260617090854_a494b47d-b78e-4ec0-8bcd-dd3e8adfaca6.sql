@@ -1,0 +1,7 @@
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS gender TEXT,
+  ADD COLUMN IF NOT EXISTS birth_date DATE,
+  ADD COLUMN IF NOT EXISTS height_cm NUMERIC,
+  ADD COLUMN IF NOT EXISTS activity_level TEXT,
+  ADD COLUMN IF NOT EXISTS goal_weight_kg NUMERIC;

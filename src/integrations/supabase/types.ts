@@ -64,20 +64,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          activity_level: string | null
+          birth_date: string | null
           created_at: string
           display_name: string | null
+          gender: string | null
+          goal_weight_kg: number | null
+          height_cm: number | null
           id: string
           user_id: string
         }
         Insert: {
+          activity_level?: string | null
+          birth_date?: string | null
           created_at?: string
           display_name?: string | null
+          gender?: string | null
+          goal_weight_kg?: number | null
+          height_cm?: number | null
           id?: string
           user_id: string
         }
         Update: {
+          activity_level?: string | null
+          birth_date?: string | null
           created_at?: string
           display_name?: string | null
+          gender?: string | null
+          goal_weight_kg?: number | null
+          height_cm?: number | null
           id?: string
           user_id?: string
         }
