@@ -378,20 +378,9 @@ function HeightRuler({
         </div>
       </div>
 
-      {/* Figure aligned to bottom, head sits at center line */}
-      <div
-        className="pointer-events-none absolute left-28 right-24 flex items-end justify-center"
-        style={{ top: 0, bottom: 0 }}
-      >
-        <div
-          className="flex items-end justify-center"
-          style={{
-            height: figureH,
-            transform: `translateY(${(containerH / 2) - (containerH - figureH) / 2 - figureH / 2}px)`,
-          }}
-        >
-          <FigureSvg gender={gender} style={{ height: "100%", width: "auto" }} />
-        </div>
+      {/* Figure: bottom-anchored, head aligns with center line */}
+      <div className="pointer-events-none absolute left-28 right-24 bottom-0 flex items-end justify-center" style={{ height: "50%" }}>
+        <FigureSvg gender={gender} style={{ height: "100%", width: "auto" }} />
       </div>
     </div>
   );
