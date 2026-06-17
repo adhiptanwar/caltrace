@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, Briefcase, Activity, Dumbbell, Flame, Trophy } from "lucide-react";
 
 type Profile = {
   gender: "male" | "female" | null;
@@ -28,9 +28,18 @@ type Profile = {
 
 type Meal = { calories: number; eaten_at: string };
 
+
 const MIN_CM = 120;
 const MAX_CM = 220;
 const TICK_PX = 6; // px per cm on the ruler
+
+const ACTIVITY_DETAILS: Record<ActivityLevel, { icon: React.ComponentType<any>; label: string; desc: string }> = {
+  sedentary: { icon: Briefcase, label: "Sedentary", desc: "Office job" },
+  light: { icon: Activity, label: "Light", desc: "1-2 days/wk" },
+  moderate: { icon: Dumbbell, label: "Moderate", desc: "3-5 days/wk" },
+  heavy: { icon: Flame, label: "Active", desc: "6-7 days/wk" },
+  athlete: { icon: Trophy, label: "Athlete", desc: "2x per day" },
+};
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
@@ -242,18 +251,29 @@ export function ProfileView({
 
       {/* Activity */}
       <Section title="Activity level">
-        <div className="space-y-1.5">
-          {ACTIVITY_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => setActivity(o.value)}
-              className={`w-full text-left rounded-xl border px-3.5 py-2 text-sm transition-colors ${
-                activity === o.value ? "bg-foreground text-background border-foreground" : "bg-card hover:bg-accent"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="flex gap-2 overflow-x-auto pb-1 snap-x no-scrollbar">
+          {ACTIVITY_OPTIONS.map((o) => {
+            const details = ACTIVITY_DETAILS[o.value];
+            const Icon = details.icon;
+            const active = activity === o.value;
+            return (
+              <button
+                key={o.value}
+                onClick={() => setActivity(o.value)}
+                className={`flex-none w-24 snap-start rounded-xl border p-2.5 flex flex-col items-center text-center transition-colors select-none ${
+                  active
+                    ? "bg-foreground text-background border-foreground font-medium"
+                    : "bg-card hover:bg-accent border-border"
+                }`}
+              >
+                <Icon className={`h-4 w-4 mb-1.5 ${active ? "text-background" : "text-muted-foreground"}`} />
+                <span className="text-[11px] font-semibold leading-tight">{details.label}</span>
+                <span className={`text-[9px] mt-0.5 leading-tight ${active ? "text-background/80" : "text-muted-foreground"}`}>
+                  {details.desc}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </Section>
 
@@ -442,17 +462,8 @@ function HeightRuler({
 
       {/* Figure: bottom anchored, head at center line */}
       <div className="pointer-events-none absolute left-20 right-20 bottom-0 flex items-end justify-center" style={{ height: "50%" }}>
-        <FigureSvg style={{ height: "100%", width: "auto" }} />
+        <User className="h-full w-auto text-foreground/40 stroke-[1.25]" />
       </div>
     </div>
-  );
-}
-
-function FigureSvg({ style }: { style?: React.CSSProperties }) {
-  return (
-    <svg viewBox="0 0 60 200" style={style} fill="currentColor" className="text-foreground/70">
-      <circle cx="30" cy="14" r="10" />
-      <path d="M14 38 c0 -6 4 -12 16 -12 s16 6 16 12 l-2 30 c0 4 -2 6 -4 8 l-2 14 c0 4 -2 6 -2 10 l4 60 c0 4 -2 6 -6 6 h-4 l-3 -50 h-2 l-3 50 h-4 c-4 0 -6 -2 -6 -6 l4 -60 c0 -4 -2 -6 -2 -10 l-2 -14 c-2 -2 -4 -4 -4 -8 z" />
-    </svg>
   );
 }
