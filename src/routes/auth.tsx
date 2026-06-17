@@ -109,10 +109,12 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
       <div className="w-full max-w-sm">
-        <div className="mb-10 flex flex-col items-center text-center">
-          <img src={logoBlack.url} alt="Trace" className="h-14 w-14 mb-4 dark:hidden" />
-          <img src={logoWhite.url} alt="Trace" className="h-14 w-14 mb-4 hidden dark:block" />
-          <h1 className="text-3xl font-semibold tracking-tight">Trace</h1>
+        <div className="mb-10 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <img src={logoBlack.url} alt="" className="h-9 w-9 dark:hidden" />
+            <img src={logoWhite.url} alt="" className="h-9 w-9 hidden dark:block" />
+            <h1 className="text-3xl font-semibold tracking-tight">Trace</h1>
+          </div>
           <p className="mt-2 text-sm text-muted-foreground">Food & weight, quietly tracked.</p>
         </div>
 
