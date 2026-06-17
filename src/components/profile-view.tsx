@@ -213,7 +213,7 @@ export function ProfileView({
           value={birthDate}
           max={new Date().toISOString().slice(0, 10)}
           onChange={(e) => setBirthDate(e.target.value)}
-          className="h-10 rounded-xl"
+          className="h-10 rounded-xl w-full min-w-0 block"
         />
         {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
       </Section>
