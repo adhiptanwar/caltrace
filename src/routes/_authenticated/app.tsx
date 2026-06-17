@@ -695,7 +695,7 @@ function AddMealButton({ onAdded }: { onAdded: () => void }) {
           className="h-12 rounded-xl"
         >
           {analyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
-          {analyzing ? "Analyzing…" : "Photo s"}
+          {analyzing ? "Analyzing…" : "Photo"}
         </Button>
         <Button variant="outline" onClick={openManual} className="h-12 rounded-xl">
           <Plus className="h-4 w-4 mr-2" /> Manual
