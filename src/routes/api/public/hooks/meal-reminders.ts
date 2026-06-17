@@ -126,9 +126,12 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
           if (result.gone) {
             await supabaseAdmin.from("push_subscriptions").delete().eq("id", sub.id);
           } else if (result.ok) {
+            const patch: Record<string, string> = {};
+            patch[lastSentKey] = parts.date;
             await supabaseAdmin
               .from("push_subscriptions")
-              .update({ [lastSentKey]: parts.date })
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .update(patch as any)
               .eq("id", sub.id);
             sent++;
           }
