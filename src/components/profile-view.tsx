@@ -27,11 +27,25 @@ type Profile = {
   goal_weight_kg: number | null;
 };
 
+type Meal = { calories: number; eaten_at: string };
+
 const MIN_CM = 120;
 const MAX_CM = 220;
-const TICK_PX = 8; // px per cm on the ruler
+const TICK_PX = 6; // px per cm on the ruler
 
-export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: number | null; onChange: () => void }) {
+function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+
+export function ProfileView({
+  latestWeightKg,
+  maintenance,
+  meals,
+  onChange,
+}: {
+  latestWeightKg: number | null;
+  maintenance: number | null;
+  meals: Meal[];
+  onChange: () => void;
+}) {
   const qc = useQueryClient();
   const getFn = useServerFnTanstack(getProfile);
   const saveFn = useServerFnTanstack(upsertProfile);
@@ -52,7 +66,6 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
   const [weightInput, setWeightInput] = useState<string>("");
   const [unit, setUnit] = useState<"cm" | "ft">("cm");
 
-  // Hydrate from server once
   useEffect(() => {
     if (!p) return;
     if (p.gender) setGender(p.gender);
@@ -69,6 +82,29 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
   const bmi = calcBMI(effectiveWeight, heightCm);
   const bmiCat = bmiCategory(bmi);
 
+  // Goal projection
+  const goalNum = Number(goalKg);
+  const projection = useMemo(() => {
+    if (!effectiveWeight || !goalNum || maintenance == null) return null;
+    const diffKg = effectiveWeight - goalNum;
+    if (Math.abs(diffKg) < 0.05) return { reached: true as const };
+    const needLose = diffKg > 0;
+    const since = startOfDay(new Date(Date.now() - 13 * 86400_000));
+    const recent = meals.filter((m) => new Date(m.eaten_at) >= since);
+    if (recent.length === 0) return { reached: false as const, days: null, avgIntake: 0, direction: needLose ? "lose" : "gain" as const };
+    const totals = new Map<string, number>();
+    recent.forEach((m) => {
+      const k = startOfDay(new Date(m.eaten_at)).toISOString();
+      totals.set(k, (totals.get(k) ?? 0) + (m.calories || 0));
+    });
+    const avgIntake = Array.from(totals.values()).reduce((a, b) => a + b, 0) / Math.max(totals.size, 1);
+    const deficit = maintenance - avgIntake; // +ve = losing
+    const effective = needLose ? deficit : -deficit;
+    if (effective <= 0) return { reached: false as const, days: null, avgIntake: Math.round(avgIntake), direction: needLose ? "lose" : "gain" as const };
+    const days = Math.ceil((Math.abs(diffKg) * 7700) / effective);
+    return { reached: false as const, days, avgIntake: Math.round(avgIntake), deficit: Math.round(deficit), direction: needLose ? "lose" : "gain" as const };
+  }, [effectiveWeight, goalNum, maintenance, meals]);
+
   const save = useMutation({
     mutationFn: async () => {
       const goal = Number(goalKg);
@@ -81,7 +117,6 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
           goal_weight_kg: goal > 0 ? goal : null,
         },
       });
-      // If no weight in history and user gave one here, log it
       if (latestWeightKg == null && weightInput) {
         const w = Number(weightInput);
         if (w > 0) await addWeightFn({ data: { weight_kg: w } });
@@ -105,19 +140,11 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
   }
 
   return (
-    <div className="space-y-5 pb-4">
-      {/* Stats summary */}
+    <div className="space-y-4 pb-4">
+      {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard
-          label="Maintenance"
-          value={tdee != null ? `${tdee}` : "—"}
-          unit="kcal/day"
-        />
-        <StatCard
-          label="BMI"
-          value={bmi != null ? bmi.toFixed(1) : "—"}
-          unit={bmiCat}
-        />
+        <StatCard label="Maintenance" value={tdee != null ? `${tdee}` : "—"} unit="kcal/day" />
+        <StatCard label="BMI" value={bmi != null ? bmi.toFixed(1) : "—"} unit={bmiCat} />
       </div>
 
       {/* Gender */}
@@ -127,7 +154,7 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
             <button
               key={g}
               onClick={() => setGender(g)}
-              className={`h-11 rounded-xl border text-sm font-medium capitalize transition-colors ${
+              className={`h-10 rounded-xl border text-sm font-medium capitalize transition-colors ${
                 gender === g ? "bg-foreground text-background border-foreground" : "bg-card hover:bg-accent"
               }`}
             >
@@ -137,26 +164,21 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
         </div>
       </Section>
 
-      {/* Age */}
+      {/* DOB */}
       <Section title="Date of birth">
         <Input
           type="date"
           value={birthDate}
           max={new Date().toISOString().slice(0, 10)}
           onChange={(e) => setBirthDate(e.target.value)}
-          className="h-11 rounded-xl"
+          className="h-10 rounded-xl"
         />
-        {age != null && <div className="mt-1 text-xs text-muted-foreground">{age} years old</div>}
+        {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
       </Section>
 
-      {/* Weight (only editable if no logs) */}
-      <Section title="Current weight">
-        {latestWeightKg != null ? (
-          <div className="rounded-xl border bg-muted/50 px-4 py-3 text-sm">
-            <span className="font-medium tabular-nums">{latestWeightKg.toFixed(1)} kg</span>
-            <span className="text-muted-foreground"> · from latest log</span>
-          </div>
-        ) : (
+      {/* Weight (only if no logs) */}
+      {latestWeightKg == null && (
+        <Section title="Current weight">
           <Input
             type="number"
             step="0.1"
@@ -164,12 +186,12 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
             placeholder="Weight in kg"
             value={weightInput}
             onChange={(e) => setWeightInput(e.target.value)}
-            className="h-11 rounded-xl"
+            className="h-10 rounded-xl"
           />
-        )}
-      </Section>
+        </Section>
+      )}
 
-      {/* Height ruler */}
+      {/* Height */}
       <Section
         title="Height"
         right={
@@ -186,7 +208,7 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
           </div>
         }
       >
-        <HeightRuler value={heightCm} onChange={setHeightCm} gender={gender} unit={unit} />
+        <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
       </Section>
 
       {/* Activity */}
@@ -196,10 +218,8 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
             <button
               key={o.value}
               onClick={() => setActivity(o.value)}
-              className={`w-full text-left rounded-xl border px-4 py-2.5 text-sm transition-colors ${
-                activity === o.value
-                  ? "bg-foreground text-background border-foreground"
-                  : "bg-card hover:bg-accent"
+              className={`w-full text-left rounded-xl border px-3.5 py-2 text-sm transition-colors ${
+                activity === o.value ? "bg-foreground text-background border-foreground" : "bg-card hover:bg-accent"
               }`}
             >
               {o.label}
@@ -208,24 +228,50 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
         </div>
       </Section>
 
-      {/* Goal weight */}
-      <Section title="Goal weight">
-        <Input
-          type="number"
-          step="0.1"
-          inputMode="decimal"
-          placeholder="Goal in kg"
-          value={goalKg}
-          onChange={(e) => setGoalKg(e.target.value)}
-          className="h-11 rounded-xl"
-        />
+      {/* Goal */}
+      <Section title="Goal">
+        <div className="rounded-2xl border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <Input
+              type="number"
+              step="0.1"
+              inputMode="decimal"
+              placeholder="Goal weight"
+              value={goalKg}
+              onChange={(e) => setGoalKg(e.target.value)}
+              className="h-10 rounded-xl flex-1"
+            />
+            <span className="text-sm text-muted-foreground">kg</span>
+          </div>
+          {effectiveWeight != null && goalNum > 0 && (
+            <div className="flex items-baseline justify-between">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</div>
+                <div className="mt-0.5 text-lg font-semibold tabular-nums">{effectiveWeight.toFixed(1)} <span className="text-xs text-muted-foreground font-normal">kg</span></div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">To go</div>
+                <div className="mt-0.5 text-lg font-semibold tabular-nums">{(effectiveWeight - goalNum).toFixed(1)} <span className="text-xs text-muted-foreground font-normal">kg</span></div>
+              </div>
+            </div>
+          )}
+          {projection && (
+            <div className="text-xs text-muted-foreground">
+              {projection.reached
+                ? "Goal reached 🎯"
+                : projection.days == null
+                ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
+                : (() => {
+                    const d = projection.days;
+                    const eta = new Date(Date.now() + d * 86400_000);
+                    return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
+                  })()}
+            </div>
+          )}
+        </div>
       </Section>
 
-      <Button
-        onClick={() => save.mutate()}
-        disabled={save.isPending}
-        className="h-12 w-full rounded-xl"
-      >
+      <Button onClick={() => save.mutate()} disabled={save.isPending} className="h-11 w-full rounded-xl">
         {save.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
         Save profile
       </Button>
@@ -235,10 +281,10 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
 
 function StatCard({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
-    <div className="rounded-2xl border bg-card p-4">
+    <div className="rounded-2xl border bg-card p-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums leading-none">{value}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{unit}</div>
+      <div className="mt-0.5 text-xl font-semibold tabular-nums leading-none">{value}</div>
+      <div className="mt-1 text-[11px] text-muted-foreground">{unit}</div>
     </div>
   );
 }
@@ -246,8 +292,8 @@ function StatCard({ label, value, unit }: { label: string; value: string; unit: 
 function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <Label className="text-xs uppercase tracking-wider text-muted-foreground">{title}</Label>
+      <div className="mb-1.5 flex items-center justify-between">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{title}</Label>
         {right}
       </div>
       {children}
@@ -255,39 +301,24 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   );
 }
 
-/* ----------- Height ruler with figure ----------- */
+/* ----------- Height ruler with figure (full-card scrollable) ----------- */
 
 function HeightRuler({
   value,
   onChange,
-  gender,
   unit,
 }: {
   value: number;
   onChange: (cm: number) => void;
-  gender: "male" | "female";
   unit: "cm" | "ft";
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const programmatic = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerH, setContainerH] = useState(320);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) setContainerH(e.contentRect.height);
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  // Scroll position: cm above MIN -> from bottom
+  const CONTAINER_H = 220;
   const totalCm = MAX_CM - MIN_CM;
   const totalPx = totalCm * TICK_PX;
-  // padding so head-line sits in middle of container
-  const padTop = containerH / 2;
-  const padBottom = containerH / 2;
+  const padTop = CONTAINER_H / 2;
+  const padBottom = CONTAINER_H / 2;
 
   // Sync external value -> scroll position
   useEffect(() => {
@@ -299,7 +330,7 @@ function HeightRuler({
       el.scrollTop = desiredTop;
       requestAnimationFrame(() => { programmatic.current = false; });
     }
-  }, [value, containerH]);
+  }, [value]);
 
   function onScroll(e: React.UIEvent<HTMLDivElement>) {
     if (programmatic.current) return;
@@ -319,34 +350,25 @@ function HeightRuler({
 
   const ftIn = cmToFtIn(value);
 
-
   return (
-    <div
-      ref={containerRef}
-      className="relative rounded-2xl border bg-card overflow-hidden"
-      style={{ height: 340 }}
-    >
-      {/* Ruler scroller — left side */}
+    <div className="relative rounded-2xl border bg-card overflow-hidden" style={{ height: CONTAINER_H }}>
+      {/* Full-card scroller — scrolling anywhere on this card adjusts height */}
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="absolute inset-y-0 left-0 w-24 overflow-y-scroll touch-pan-y no-scrollbar"
-        style={{ scrollSnapType: "y mandatory" }}
+        className="absolute inset-0 overflow-y-scroll touch-pan-y no-scrollbar"
       >
         <div style={{ height: padTop }} />
         <div className="relative" style={{ height: totalPx }}>
-          {ticks.map((t, i) => {
+          {ticks.map((t) => {
             const top = (MAX_CM - t.cm) * TICK_PX;
             return (
               <div
                 key={t.cm}
-                className="absolute left-0 right-0 flex items-center"
-                style={{ top, height: 1, scrollSnapAlign: i === 0 ? "start" : undefined }}
+                className="absolute left-0 flex items-center"
+                style={{ top, height: 1 }}
               >
-                <div
-                  className={`bg-foreground/60 ${t.major ? "w-6" : "w-3"}`}
-                  style={{ height: 1 }}
-                />
+                <div className={`bg-foreground/50 ${t.major ? "w-5" : "w-2.5"}`} style={{ height: 1 }} />
                 {t.label && (
                   <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">{t.cm}</span>
                 )}
@@ -357,17 +379,14 @@ function HeightRuler({
         <div style={{ height: padBottom }} />
       </div>
 
-      {/* Center head-line indicator across ruler */}
-      <div
-        className="pointer-events-none absolute left-0 right-0 flex items-center"
-        style={{ top: "50%", transform: "translateY(-50%)" }}
-      >
+      {/* Center indicator line */}
+      <div className="pointer-events-none absolute left-0 right-0 top-1/2 -translate-y-1/2">
         <div className="h-px w-full bg-primary/70" />
       </div>
 
       {/* Readout */}
       <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-right">
-        <div className="text-3xl font-semibold tabular-nums leading-none">
+        <div className="text-2xl font-semibold tabular-nums leading-none">
           {unit === "cm" ? value : `${ftIn.ft}'${ftIn.inch}"`}
         </div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
@@ -375,26 +394,17 @@ function HeightRuler({
         </div>
       </div>
 
-      {/* Figure: bottom-anchored, head aligns with center line */}
-      <div className="pointer-events-none absolute left-28 right-24 bottom-0 flex items-end justify-center" style={{ height: "50%" }}>
-        <FigureSvg gender={gender} style={{ height: "100%", width: "auto" }} />
+      {/* Figure: bottom anchored, head at center line */}
+      <div className="pointer-events-none absolute left-20 right-20 bottom-0 flex items-end justify-center" style={{ height: "50%" }}>
+        <FigureSvg style={{ height: "100%", width: "auto" }} />
       </div>
     </div>
   );
 }
 
-function FigureSvg({ gender, style }: { gender: "male" | "female"; style?: React.CSSProperties }) {
-  // Simple silhouette
-  if (gender === "female") {
-    return (
-      <svg viewBox="0 0 60 200" style={style} fill="currentColor" className="text-foreground/80">
-        <circle cx="30" cy="14" r="10" />
-        <path d="M22 26 h16 l4 22 c0 0 8 6 6 22 l-6 22 c-2 6 -4 8 -4 14 l4 60 c0 4 -2 6 -6 6 h-4 l-3 -50 h-2 l-3 50 h-4 c-4 0 -6 -2 -6 -6 l4 -60 c0 -6 -2 -8 -4 -14 l-6 -22 c-2 -16 6 -22 6 -22 z" />
-      </svg>
-    );
-  }
+function FigureSvg({ style }: { style?: React.CSSProperties }) {
   return (
-    <svg viewBox="0 0 60 200" style={style} fill="currentColor" className="text-foreground/80">
+    <svg viewBox="0 0 60 200" style={style} fill="currentColor" className="text-foreground/70">
       <circle cx="30" cy="14" r="10" />
       <path d="M14 38 c0 -6 4 -12 16 -12 s16 6 16 12 l-2 30 c0 4 -2 6 -4 8 l-2 14 c0 4 -2 6 -2 10 l4 60 c0 4 -2 6 -6 6 h-4 l-3 -50 h-2 l-3 50 h-4 c-4 0 -6 -2 -6 -6 l4 -60 c0 -4 -2 -6 -2 -10 l-2 -14 c-2 -2 -4 -4 -4 -8 z" />
     </svg>
