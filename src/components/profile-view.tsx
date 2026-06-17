@@ -206,17 +206,54 @@ export function ProfileView({
         </div>
       </Section>
 
-      {/* DOB */}
-      <Section title="Date of birth">
-        <Input
-          type="date"
-          value={birthDate}
-          max={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => setBirthDate(e.target.value)}
-          className="h-10 rounded-xl w-full min-w-0 block"
-        />
-        {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
-      </Section>
+      {/* DOB + Height side by side */}
+      <div className="grid grid-cols-2 gap-3">
+        <Section title="Date of birth">
+          <Input
+            type="date"
+            value={birthDate}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setBirthDate(e.target.value)}
+            className="h-12 rounded-xl w-full min-w-0 block text-sm px-2 text-center"
+          />
+          {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
+        </Section>
+
+        <Section title="Height">
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="h-12 w-full rounded-xl border bg-card px-3 flex items-center justify-between hover:bg-accent transition-colors">
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="text-base font-semibold tabular-nums leading-none">
+                  {unit === "cm"
+                    ? `${heightCm} cm`
+                    : (() => { const f = cmToFtIn(heightCm); return `${f.ft}'${f.inch}"`; })()}
+                </div>
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+                  <span>Set height</span>
+                  <div className="inline-flex rounded-lg border p-0.5 bg-muted text-[11px] font-normal">
+                    {(["cm", "ft"] as const).map((u) => (
+                      <button
+                        key={u}
+                        onClick={() => setUnit(u)}
+                        className={`px-2 py-0.5 rounded-md transition-colors ${unit === u ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+              <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
+            </DialogContent>
+          </Dialog>
+        </Section>
+      </div>
 
       {/* Weight (only if no logs) */}
       {latestWeightKg == null && (
@@ -232,49 +269,6 @@ export function ProfileView({
           />
         </Section>
       )}
-
-      {/* Height */}
-      <Section
-        title="Height"
-        right={
-          <div className="inline-flex rounded-lg border p-0.5 bg-muted text-[11px]">
-            {(["cm", "ft"] as const).map((u) => (
-              <button
-                key={u}
-                onClick={() => setUnit(u)}
-                className={`px-2 py-0.5 rounded-md transition-colors ${unit === u ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-              >
-                {u}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        <Dialog>
-          <DialogTrigger asChild>
-            <button className="w-full rounded-2xl border bg-card p-4 flex items-center justify-between hover:bg-accent transition-colors">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span className="text-xs">Tap to adjust</span>
-              </div>
-              <div className="text-right">
-                <div className="text-xl font-semibold tabular-nums leading-none">
-                  {unit === "cm" ? heightCm : (() => { const f = cmToFtIn(heightCm); return `${f.ft}'${f.inch}"`; })()}
-                </div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-                  {unit === "cm" ? "cm" : "ft / in"}
-                </div>
-              </div>
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Set height</DialogTitle>
-            </DialogHeader>
-            <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
-          </DialogContent>
-        </Dialog>
-      </Section>
 
       {/* Activity */}
       <Section title="Activity level">
