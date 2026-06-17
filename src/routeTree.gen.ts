@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as ApiPublicVersionRouteImport } from './routes/api/public/version'
 import { Route as ApiPublicHooksMealRemindersRouteImport } from './routes/api/public/hooks/meal-reminders'
 
 const AuthRoute = AuthRouteImport.update({
@@ -34,6 +35,11 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
+  id: '/api/public/version',
+  path: '/api/public/version',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksMealRemindersRoute =
   ApiPublicHooksMealRemindersRouteImport.update({
     id: '/api/public/hooks/meal-reminders',
@@ -45,12 +51,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/hooks/meal-reminders': typeof ApiPublicHooksMealRemindersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/app': typeof AuthenticatedAppRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/hooks/meal-reminders': typeof ApiPublicHooksMealRemindersRoute
 }
 export interface FileRoutesById {
@@ -59,19 +67,31 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
   '/api/public/hooks/meal-reminders': typeof ApiPublicHooksMealRemindersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/app' | '/api/public/hooks/meal-reminders'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/app'
+    | '/api/public/version'
+    | '/api/public/hooks/meal-reminders'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/app' | '/api/public/hooks/meal-reminders'
+  to:
+    | '/'
+    | '/auth'
+    | '/app'
+    | '/api/public/version'
+    | '/api/public/hooks/meal-reminders'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/app'
+    | '/api/public/version'
     | '/api/public/hooks/meal-reminders'
   fileRoutesById: FileRoutesById
 }
@@ -79,6 +99,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicVersionRoute: typeof ApiPublicVersionRoute
   ApiPublicHooksMealRemindersRoute: typeof ApiPublicHooksMealRemindersRoute
 }
 
@@ -112,6 +133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/version': {
+      id: '/api/public/version'
+      path: '/api/public/version'
+      fullPath: '/api/public/version'
+      preLoaderRoute: typeof ApiPublicVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/meal-reminders': {
       id: '/api/public/hooks/meal-reminders'
       path: '/api/public/hooks/meal-reminders'
@@ -137,6 +165,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicVersionRoute: ApiPublicVersionRoute,
   ApiPublicHooksMealRemindersRoute: ApiPublicHooksMealRemindersRoute,
 }
 export const routeTree = rootRouteImport
