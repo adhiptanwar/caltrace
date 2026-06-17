@@ -891,7 +891,7 @@ function HistoryView({ meals, maintenance, onChange }: { meals: Meal[]; maintena
 
 /* ---------------- Weight ---------------- */
 
-function WeightView({ weights, onChange }: { weights: Weight[]; onChange: () => void }) {
+function WeightView({ weights, maintenance, goalKg, meals, onChange }: { weights: Weight[]; maintenance: number | null; goalKg: number | null; meals: Meal[]; onChange: () => void }) {
   const [input, setInput] = useState("");
   const [range, setRange] = useState<"7" | "30" | "all">("30");
   const [historyOpen, setHistoryOpen] = useState(false);
