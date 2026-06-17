@@ -12,8 +12,12 @@ function canUseServiceWorkerHere() {
   const host = window.location.hostname;
   if (window.self !== window.top) return false;
   if (host.startsWith("id-preview--") || host.startsWith("preview--")) return false;
-  if (host === "lovableproject.com" || host.endsWith(".lovableproject.com")) return false;
-  if (host === "lovableproject-dev.com" || host.endsWith(".lovableproject-dev.com")) return false;
+  if (host === "lovableproject.com" || host.endsWith(".lovableproject.com")) {
+    return false;
+  }
+  if (host === "lovableproject-dev.com" || host.endsWith(".lovableproject-dev.com")) {
+    return false;
+  }
   if (host === "beta.lovable.dev" || host.endsWith(".beta.lovable.dev")) return false;
   return true;
 }
@@ -32,7 +36,9 @@ export function VersionChecker() {
     try {
       const lastSeenBuildId = window.localStorage.getItem(LAST_SEEN_BUILD_KEY);
       if (lastSeenBuildId && lastSeenBuildId !== CURRENT_BUILD_ID) {
-        toast.success("Trace updated", { description: "You're now using the latest version." });
+        toast.success("Trace updated", {
+          description: "You're now using the latest version.",
+        });
       }
       window.localStorage.setItem(LAST_SEEN_BUILD_KEY, CURRENT_BUILD_ID);
     } catch {
@@ -93,9 +99,14 @@ export function VersionChecker() {
       if (updateAvailableRef.current || cancelled) return;
       try {
         if (canUseServiceWorkerHere()) {
-          void navigator.serviceWorker.getRegistration("/").then((reg) => reg?.update()).catch(() => undefined);
+          void navigator.serviceWorker
+            .getRegistration("/")
+            .then((reg) => reg?.update())
+            .catch(() => undefined);
         }
-        const res = await fetch(`/api/public/version?t=${Date.now()}`, { cache: "no-store" });
+        const res = await fetch(`/api/public/version?t=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const data = (await res.json()) as { buildId?: string };
         if (!data.buildId || data.buildId === CURRENT_BUILD_ID) return;
