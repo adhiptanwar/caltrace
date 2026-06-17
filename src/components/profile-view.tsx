@@ -251,18 +251,29 @@ export function ProfileView({
 
       {/* Activity */}
       <Section title="Activity level">
-        <div className="space-y-1.5">
-          {ACTIVITY_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => setActivity(o.value)}
-              className={`w-full text-left rounded-xl border px-3.5 py-2 text-sm transition-colors ${
-                activity === o.value ? "bg-foreground text-background border-foreground" : "bg-card hover:bg-accent"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className="flex gap-2 overflow-x-auto pb-1 snap-x no-scrollbar">
+          {ACTIVITY_OPTIONS.map((o) => {
+            const details = ACTIVITY_DETAILS[o.value];
+            const Icon = details.icon;
+            const active = activity === o.value;
+            return (
+              <button
+                key={o.value}
+                onClick={() => setActivity(o.value)}
+                className={`flex-none w-24 snap-start rounded-xl border p-2.5 flex flex-col items-center text-center transition-colors select-none ${
+                  active
+                    ? "bg-foreground text-background border-foreground font-medium"
+                    : "bg-card hover:bg-accent border-border"
+                }`}
+              >
+                <Icon className={`h-4 w-4 mb-1.5 ${active ? "text-background" : "text-muted-foreground"}`} />
+                <span className="text-[11px] font-semibold leading-tight">{details.label}</span>
+                <span className={`text-[9px] mt-0.5 leading-tight ${active ? "text-background/80" : "text-muted-foreground"}`}>
+                  {details.desc}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </Section>
 
