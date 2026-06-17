@@ -11,7 +11,7 @@ const SLOT_MESSAGES: Record<Slot, { title: string; body: string }> = {
   lunch: { title: "Lunch time 🥗", body: "Take a moment to log your lunch in Trace." },
   dinner: { title: "Dinner time 🍽️", body: "Log your dinner so your day is complete." },
 };
-const WINDOW_MIN = 10; // send if cron runs within ±10 min of slot time
+const WINDOW_MIN = 240; // send if cron runs within ±10 min of slot time
 
 function localParts(tz: string, now: Date) {
   try {
@@ -59,7 +59,9 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
         const now = new Date();
         const { data: subs, error } = await supabaseAdmin
           .from("push_subscriptions")
-          .select("id, user_id, endpoint, p256dh, auth, timezone, last_sent_breakfast, last_sent_lunch, last_sent_dinner");
+          .select(
+            "id, user_id, endpoint, p256dh, auth, timezone, last_sent_breakfast, last_sent_lunch, last_sent_dinner",
+          );
         if (error) return Response.json({ error: error.message }, { status: 500 });
 
         let sent = 0;
@@ -76,10 +78,7 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
             skipped++;
             continue;
           }
-          const lastSentKey = `last_sent_${slot}` as
-            | "last_sent_breakfast"
-            | "last_sent_lunch"
-            | "last_sent_dinner";
+          const lastSentKey = `last_sent_${slot}` as "last_sent_breakfast" | "last_sent_lunch" | "last_sent_dinner";
           if (sub[lastSentKey] === parts.date) {
             skipped++;
             continue;
