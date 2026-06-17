@@ -145,7 +145,8 @@ export function VersionChecker() {
         // ignore
       }
       if (document.visibilityState === "visible") {
-        showUpdateToast();
+        // Auto-apply on foreground — no user prompt.
+        void applyUpdate();
         return;
       }
       await showBackgroundNotification(nextBuildId);
@@ -177,11 +178,11 @@ export function VersionChecker() {
     const interval = window.setInterval(check, POLL_INTERVAL_MS);
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      if (updateAvailableRef.current) showUpdateToast();
+      if (updateAvailableRef.current) void applyUpdate();
       else check();
     };
     const onWake = () => {
-      if (updateAvailableRef.current) showUpdateToast();
+      if (updateAvailableRef.current) void applyUpdate();
       else check();
     };
     document.addEventListener("visibilitychange", onVisible);
