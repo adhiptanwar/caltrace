@@ -149,7 +149,7 @@ export function InstallPrompt() {
           <Button
             variant="outline"
             onClick={dismiss}
-            className="border-2 border-border"
+            className="border border-border"
           >
             Not now
           </Button>
