@@ -285,26 +285,43 @@ export function ProfileView({
               </div>
             </div>
           )}
-          {projection && (
-            <div className="text-xs text-muted-foreground">
-              {projection.reached
-                ? "Goal reached 🎯"
-                : projection.days == null
-                ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
-                : (() => {
-                    const d = projection.days;
-                    const eta = new Date(Date.now() + d * 86400_000);
-                    return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
-                  })()}
+          {effectiveWeight != null && goalNum > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg intake window</Label>
+                <div className="inline-flex rounded-lg border p-0.5 bg-muted text-[11px]">
+                  {([
+                    { v: "7", l: "7d" },
+                    { v: "30", l: "30d" },
+                    { v: "all", l: "All" },
+                  ] as const).map((o) => (
+                    <button
+                      key={o.v}
+                      onClick={() => setProjWindow(o.v)}
+                      className={`px-2 py-0.5 rounded-md transition-colors ${projWindow === o.v ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                    >
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {projection && (
+                <div className="text-xs text-muted-foreground">
+                  {projection.reached
+                    ? "Goal reached 🎯"
+                    : projection.days == null
+                    ? `Avg intake ${projection.avgIntake} kcal — adjust to ${projection.direction} weight`
+                    : (() => {
+                        const d = projection.days;
+                        const eta = new Date(Date.now() + d * 86400_000);
+                        return `~${d} days (≈ ${eta.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}) at ${projection.avgIntake} kcal/day avg`;
+                      })()}
+                </div>
+              )}
             </div>
           )}
         </div>
       </Section>
-
-      <Button onClick={() => save.mutate()} disabled={save.isPending} className="h-11 w-full rounded-xl">
-        {save.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-        Save profile
-      </Button>
     </div>
   );
 }
