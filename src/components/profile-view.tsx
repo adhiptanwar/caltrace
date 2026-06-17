@@ -198,15 +198,6 @@ export function ProfileView({
         <StatCard label="BMI" value={bmi != null ? bmi.toFixed(1) : "—"} unit={bmiCat} />
       </div>
 
-      {/* Edit profile trigger */}
-      <button
-        onClick={() => setEditOpen(true)}
-        className="w-full h-12 rounded-xl border bg-card hover:bg-accent transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-      >
-        <Settings2 className="h-4 w-4 text-muted-foreground" />
-        Edit profile
-      </button>
-
       {/* Weight (only if no logs) */}
       {latestWeightKg == null && (
         <Section title="Current weight">
@@ -390,6 +381,15 @@ export function ProfileView({
           )}
         </div>
       </Section>
+
+      {/* Edit profile trigger */}
+      <button
+        onClick={() => setEditOpen(true)}
+        className="w-full h-12 rounded-xl border bg-card hover:bg-accent transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+      >
+        <Settings2 className="h-4 w-4 text-muted-foreground" />
+        Edit profile
+      </button>
 
     </div>
   );
