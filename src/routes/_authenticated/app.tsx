@@ -828,6 +828,15 @@ function HistoryView({ meals, maintenance, onChange }: { meals: Meal[]; maintena
                 cursor={{ fill: "var(--accent)" }}
               />
               <Bar dataKey="kcal" fill="var(--foreground)" radius={[4, 4, 0, 0]} />
+              {maintenance != null && (
+                <ReferenceLine
+                  y={maintenance}
+                  stroke="var(--primary)"
+                  strokeDasharray="4 4"
+                  strokeWidth={1.5}
+                  label={{ value: `Maintenance ${maintenance}`, position: "insideTopRight", fill: "var(--primary)", fontSize: 10 }}
+                />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
