@@ -11,7 +11,7 @@ const SLOT_MESSAGES: Record<Slot, { title: string; body: string }> = {
   lunch: { title: "Lunch time 🥗", body: "Take a moment to log your lunch in Trace." },
   dinner: { title: "Dinner time 🍽️", body: "Log your dinner so your day is complete." },
 };
-const WINDOW_MIN = 240; // send if cron runs within ±10 min of slot time
+const WINDOW_MIN = 10; // send if cron runs within ±10 min of slot time
 
 function localParts(tz: string, now: Date) {
   try {
@@ -83,8 +83,7 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
           const slot = slotForLocalTime(parts.hour, parts.minute);
 
           // --- Weight reminder: around 8am local, only if no weight logged yesterday ---
-          const isWeightWindow =
-            Math.abs(parts.hour * 60 + parts.minute - (8 * 60)) <= WINDOW_MIN;
+          const isWeightWindow = Math.abs(parts.hour * 60 + parts.minute - 8 * 60) <= WINDOW_MIN;
           if (isWeightWindow && sub.last_sent_weight !== parts.date) {
             const yesterday = prevDate(parts.date);
             // Query a wide UTC window covering yesterday in user's tz
