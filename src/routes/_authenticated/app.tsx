@@ -18,6 +18,8 @@ import {
   BarChart, Bar, CartesianGrid,
 } from "recharts";
 import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight } from "lucide-react";
+import logoBlack from "@/assets/trace-mark-black.png.asset.json";
+import logoWhite from "@/assets/trace-mark-white.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({ meta: [{ title: "Trace — Food & Weight" }] }),
