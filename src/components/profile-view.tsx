@@ -110,30 +110,56 @@ export function ProfileView({
   }, [effectiveWeight, goalNum, maintenance, meals, projWindow]);
 
   const save = useMutation({
-    mutationFn: async () => {
-      const goal = Number(goalKg);
-      await saveFn({
-        data: {
-          gender,
-          birth_date: birthDate || null,
-          height_cm: heightCm,
-          activity_level: activity,
-          goal_weight_kg: goal > 0 ? goal : null,
-        },
-      });
-      if (latestWeightKg == null && weightInput) {
-        const w = Number(weightInput);
-        if (w > 0) await addWeightFn({ data: { weight_kg: w } });
-      }
+    mutationFn: async (payload: {
+      gender: "male" | "female";
+      birth_date: string | null;
+      height_cm: number;
+      activity_level: ActivityLevel;
+      goal_weight_kg: number | null;
+    }) => {
+      await saveFn({ data: payload });
     },
     onSuccess: () => {
-      toast.success("Profile saved");
       qc.invalidateQueries({ queryKey: ["profile"] });
-      qc.invalidateQueries({ queryKey: ["weights"] });
       onChange();
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Autosave profile fields (debounced) once initial data is hydrated.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const goal = Number(goalKg);
+    const payload = {
+      gender,
+      birth_date: birthDate || null,
+      height_cm: heightCm,
+      activity_level: activity,
+      goal_weight_kg: goal > 0 ? goal : null,
+    };
+    const t = setTimeout(() => save.mutate(payload), 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gender, birthDate, heightCm, activity, goalKg]);
+
+  // Autosave initial weight log if user enters one (only when no prior logs).
+  useEffect(() => {
+    if (!hydrated.current) return;
+    if (latestWeightKg != null) return;
+    const w = Number(weightInput);
+    if (!(w > 0)) return;
+    const t = setTimeout(async () => {
+      try {
+        await addWeightFn({ data: { weight_kg: w } });
+        qc.invalidateQueries({ queryKey: ["weights"] });
+        onChange();
+      } catch (e: any) {
+        toast.error(e.message);
+      }
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weightInput, latestWeightKg]);
 
   if (profileQ.isLoading) {
     return (
