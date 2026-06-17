@@ -128,9 +128,11 @@ export function ProfileView({
       goal_weight_kg: number | null;
     }) => {
       await saveFn({ data: payload });
+      return payload;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["profile"] });
+    onSuccess: (payload) => {
+      // Update cache directly — no refetch — so local state isn't clobbered mid-edit.
+      qc.setQueryData(["profile"], (prev: any) => ({ ...(prev ?? {}), ...payload }));
       onChange();
     },
     onError: (e: any) => toast.error(e.message),
