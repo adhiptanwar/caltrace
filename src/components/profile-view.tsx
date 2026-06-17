@@ -39,7 +39,7 @@ export function ProfileView({ latestWeightKg, onChange }: { latestWeightKg: numb
 
   const profileQ = useQuery({
     queryKey: ["profile"],
-    queryFn: () => getFn({ data: {} }) as Promise<Profile | null>,
+    queryFn: () => (getFn as any)() as Promise<Profile | null>,
   });
 
   const p = profileQ.data;
