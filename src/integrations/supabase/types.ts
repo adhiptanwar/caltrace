@@ -98,6 +98,45 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_sent_breakfast: string | null
+          last_sent_dinner: string | null
+          last_sent_lunch: string | null
+          p256dh: string
+          timezone: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_sent_breakfast?: string | null
+          last_sent_dinner?: string | null
+          last_sent_lunch?: string | null
+          p256dh: string
+          timezone?: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_sent_breakfast?: string | null
+          last_sent_dinner?: string | null
+          last_sent_lunch?: string | null
+          p256dh?: string
+          timezone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weights: {
         Row: {
           created_at: string

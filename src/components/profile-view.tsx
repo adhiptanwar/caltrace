@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, User, Briefcase, Activity, Dumbbell, Flame, Trophy, Pencil } from "lucide-react";
+import { NotificationToggle } from "@/components/notification-toggle";
 
 type Profile = {
   gender: "male" | "female" | null;
@@ -361,6 +362,10 @@ export function ProfileView({
             </div>
           )}
         </div>
+      </Section>
+
+      <Section title="Notifications">
+        <NotificationToggle />
       </Section>
     </div>
   );
