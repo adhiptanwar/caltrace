@@ -198,71 +198,14 @@ export function ProfileView({
         <StatCard label="BMI" value={bmi != null ? bmi.toFixed(1) : "—"} unit={bmiCat} />
       </div>
 
-      {/* Gender */}
-      <Section title="Gender">
-        <div className="grid grid-cols-2 gap-2">
-          {(["male", "female"] as const).map((g) => (
-            <button
-              key={g}
-              onClick={() => setGender(g)}
-              className={`h-10 rounded-xl border text-sm font-medium capitalize transition-colors ${
-                gender === g ? "bg-foreground text-background border-foreground" : "bg-card hover:bg-accent"
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      {/* DOB + Height side by side */}
-      <div className="grid grid-cols-2 gap-3">
-        <Section title="Date of birth">
-          <Input
-            type="date"
-            value={birthDate}
-            max={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => setBirthDate(e.target.value)}
-            className="h-12 rounded-xl w-full min-w-0 flex items-center justify-center text-base font-semibold px-3 py-0 text-center border-border bg-card shadow-none focus-visible:ring-1 focus-visible:ring-ring appearance-none [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:h-5 [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:flex [&::-webkit-date-and-time-value]:items-center [&::-webkit-date-and-time-value]:justify-center"
-          />
-          {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
-        </Section>
-
-        <Section title="Height">
-          <Dialog>
-            <DialogTrigger asChild>
-              <button className="h-12 w-full rounded-xl border bg-card px-3 flex items-center justify-between hover:bg-accent transition-colors">
-                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="text-base font-semibold tabular-nums leading-none">
-                  {unit === "cm"
-                    ? `${heightCm} cm`
-                    : (() => { const f = cmToFtIn(heightCm); return `${f.ft}'${f.inch}"`; })()}
-                </div>
-                <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              </button>
-            </DialogTrigger>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle className="flex items-center justify-between gap-3 pr-6">
-                  <span>Set height</span>
-                  <div className="inline-flex rounded-lg border p-0.5 bg-muted text-[11px] font-normal">
-                    {(["cm", "ft"] as const).map((u) => (
-                      <button
-                        key={u}
-                        onClick={() => setUnit(u)}
-                        className={`px-2 py-0.5 rounded-md transition-colors ${unit === u ? "bg-background shadow-sm" : "text-muted-foreground"}`}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                </DialogTitle>
-              </DialogHeader>
-              <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
-            </DialogContent>
-          </Dialog>
-        </Section>
-      </div>
+      {/* Edit profile trigger */}
+      <button
+        onClick={() => setEditOpen(true)}
+        className="w-full h-12 rounded-xl border bg-card hover:bg-accent transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+      >
+        <Settings2 className="h-4 w-4 text-muted-foreground" />
+        Edit profile
+      </button>
 
       {/* Weight (only if no logs) */}
       {latestWeightKg == null && (
@@ -279,33 +222,109 @@ export function ProfileView({
         </Section>
       )}
 
-      {/* Activity */}
-      <Section title="Activity level">
-        <div className="grid grid-cols-5 gap-1.5">
-          {ACTIVITY_OPTIONS.map((o) => {
-            const details = ACTIVITY_DETAILS[o.value];
-            const Icon = details.icon;
-            const active = activity === o.value;
-            return (
-              <button
-                key={o.value}
-                onClick={() => setActivity(o.value)}
-                className={`rounded-xl border p-1.5 flex flex-col items-center text-center transition-colors select-none min-w-0 ${
-                  active
-                    ? "bg-foreground text-background border-foreground font-medium"
-                    : "bg-card hover:bg-accent border-border"
-                }`}
-              >
-                <Icon className={`h-3.5 w-3.5 mb-1 ${active ? "text-background" : "text-muted-foreground"}`} />
-                <span className="text-[10px] font-semibold leading-tight truncate w-full">{details.label}</span>
-                <span className={`text-[9px] mt-0.5 leading-tight truncate w-full ${active ? "text-background/80" : "text-muted-foreground"}`}>
-                  {details.desc}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Section>
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="bottom" className="h-[90dvh] p-0 flex flex-col rounded-t-2xl">
+          <SheetHeader className="p-5 pb-3 shrink-0">
+            <SheetTitle>Edit profile</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-4">
+            {/* Gender */}
+            <Section title="Gender">
+              <div className="grid grid-cols-2 gap-2">
+                {(["male", "female"] as const).map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGender(g)}
+                    className={`h-10 rounded-xl border text-sm font-medium capitalize transition-colors ${
+                      gender === g ? "bg-foreground text-background border-foreground" : "bg-card hover:bg-accent"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </Section>
+
+            {/* DOB + Height side by side */}
+            <div className="grid grid-cols-2 gap-3">
+              <Section title="Date of birth">
+                <Input
+                  type="date"
+                  value={birthDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  className="h-12 rounded-xl w-full min-w-0 flex items-center justify-center text-base font-semibold px-3 py-0 text-center border-border bg-card shadow-none focus-visible:ring-1 focus-visible:ring-ring appearance-none [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:p-0 [&::-webkit-date-and-time-value]:h-5 [&::-webkit-date-and-time-value]:text-center [&::-webkit-date-and-time-value]:flex [&::-webkit-date-and-time-value]:items-center [&::-webkit-date-and-time-value]:justify-center"
+                />
+                {age != null && <div className="mt-1 text-[11px] text-muted-foreground">{age} years old</div>}
+              </Section>
+
+              <Section title="Height">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="h-12 w-full rounded-xl border bg-card px-3 flex items-center justify-between hover:bg-accent transition-colors">
+                      <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="text-base font-semibold tabular-nums leading-none">
+                        {unit === "cm"
+                          ? `${heightCm} cm`
+                          : (() => { const f = cmToFtIn(heightCm); return `${f.ft}'${f.inch}"`; })()}
+                      </div>
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+                        <span>Set height</span>
+                        <div className="inline-flex rounded-lg border p-0.5 bg-muted text-[11px] font-normal">
+                          {(["cm", "ft"] as const).map((u) => (
+                            <button
+                              key={u}
+                              onClick={() => setUnit(u)}
+                              className={`px-2 py-0.5 rounded-md transition-colors ${unit === u ? "bg-background shadow-sm" : "text-muted-foreground"}`}
+                            >
+                              {u}
+                            </button>
+                          ))}
+                        </div>
+                      </DialogTitle>
+                    </DialogHeader>
+                    <HeightRuler value={heightCm} onChange={setHeightCm} unit={unit} />
+                  </DialogContent>
+                </Dialog>
+              </Section>
+            </div>
+
+            {/* Activity */}
+            <Section title="Activity level">
+              <div className="grid grid-cols-5 gap-1.5">
+                {ACTIVITY_OPTIONS.map((o) => {
+                  const details = ACTIVITY_DETAILS[o.value];
+                  const Icon = details.icon;
+                  const active = activity === o.value;
+                  return (
+                    <button
+                      key={o.value}
+                      onClick={() => setActivity(o.value)}
+                      className={`rounded-xl border p-1.5 flex flex-col items-center text-center transition-colors select-none min-w-0 ${
+                        active
+                          ? "bg-foreground text-background border-foreground font-medium"
+                          : "bg-card hover:bg-accent border-border"
+                      }`}
+                    >
+                      <Icon className={`h-3.5 w-3.5 mb-1 ${active ? "text-background" : "text-muted-foreground"}`} />
+                      <span className="text-[10px] font-semibold leading-tight truncate w-full">{details.label}</span>
+                      <span className={`text-[9px] mt-0.5 leading-tight truncate w-full ${active ? "text-background/80" : "text-muted-foreground"}`}>
+                        {details.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Section>
+          </div>
+        </SheetContent>
+      </Sheet>
+
 
       {/* Goal */}
       <Section title="Goal">
