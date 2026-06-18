@@ -6,11 +6,7 @@ const SLOT_TIMES: Record<Slot, { hour: number; minute: number }> = {
   lunch: { hour: 12, minute: 30 },
   dinner: { hour: 19, minute: 0 },
 };
-const SLOT_MESSAGES: Record<Slot, { title: string; body: string }> = {
-  breakfast: { title: "Good morning ☀️", body: "Don't forget to log your breakfast in Trace." },
-  lunch: { title: "Lunch time 🥗", body: "Take a moment to log your lunch in Trace." },
-  dinner: { title: "Dinner time 🍽️", body: "Log your dinner so your day is complete." },
-};
+// Messages generated daily by AI; see src/lib/daily-messages.server.ts
 const WINDOW_MIN = 10; // send if cron runs within ±10 min of slot time
 
 function localParts(tz: string, now: Date) {
@@ -55,6 +51,8 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { sendPush } = await import("@/lib/push-sender.server");
+        const { getDailyMessages } = await import("@/lib/daily-messages.server");
+        const dailyMessages = await getDailyMessages();
 
         const now = new Date();
         const { data: subs, error } = await supabaseAdmin
@@ -111,8 +109,8 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
               const result = await sendPush(
                 { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
                 {
-                  title: "Time to weigh in ⚖️",
-                  body: "Log today's weight to keep your trend up to date.",
+                  title: dailyMessages.weight.title,
+                  body: dailyMessages.weight.body,
                   url: "/app",
                   tag: `trace-weight-${parts.date}`,
                 },
@@ -173,7 +171,7 @@ export const Route = createFileRoute("/api/public/hooks/meal-reminders")({
             continue;
           }
 
-          const msg = SLOT_MESSAGES[slot];
+          const msg = dailyMessages[slot];
           const result = await sendPush(
             { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
             { title: msg.title, body: msg.body, url: "/app", tag: `trace-${slot}-${parts.date}` },

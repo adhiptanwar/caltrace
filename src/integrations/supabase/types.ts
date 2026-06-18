@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_reminder_messages: {
+        Row: {
+          body: string
+          created_at: string
+          date: string
+          slot: string
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          date: string
+          slot: string
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          date?: string
+          slot?: string
+          title?: string
+        }
+        Relationships: []
+      }
       meals: {
         Row: {
           calories: number
