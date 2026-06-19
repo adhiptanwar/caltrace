@@ -106,6 +106,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      // Open the TLS connection to the backend in parallel with HTML/JS
+      // download so the first auth/data call doesn't pay handshake latency
+      // (big win on slow / high-latency mobile connections).
+      { rel: "preconnect", href: "https://nmxovvlytrlxbmmrqxpp.supabase.co", crossOrigin: "anonymous" },
+      { rel: "dns-prefetch", href: "https://nmxovvlytrlxbmmrqxpp.supabase.co" },
     ],
   }),
 
