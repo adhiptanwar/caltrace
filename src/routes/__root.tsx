@@ -7,13 +7,19 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { InstallPrompt } from "@/components/install-prompt";
-import { VersionChecker } from "@/components/version-checker";
+
+// Lazy-loaded so they don't bloat the initial JS bundle on slow networks.
+const InstallPrompt = lazy(() =>
+  import("@/components/install-prompt").then((m) => ({ default: m.InstallPrompt })),
+);
+const VersionChecker = lazy(() =>
+  import("@/components/version-checker").then((m) => ({ default: m.VersionChecker })),
+);
 
 
 function NotFoundComponent() {
@@ -106,6 +112,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      // Open the TLS connection to the backend in parallel with HTML/JS
+      // download so the first auth/data call doesn't pay handshake latency
+      // (big win on slow / high-latency mobile connections).
+      { rel: "preconnect", href: "https://nmxovvlytrlxbmmrqxpp.supabase.co", crossOrigin: "anonymous" },
+      { rel: "dns-prefetch", href: "https://nmxovvlytrlxbmmrqxpp.supabase.co" },
     ],
   }),
 
@@ -156,8 +167,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
-      <InstallPrompt />
-      <VersionChecker />
+      <Suspense fallback={null}>
+        <InstallPrompt />
+        <VersionChecker />
+      </Suspense>
       <Toaster />
     </QueryClientProvider>
 
