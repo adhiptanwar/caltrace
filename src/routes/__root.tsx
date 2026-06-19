@@ -117,12 +117,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 const themeInitScript = `(function(){try{var s=localStorage.getItem('theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
+// Runs before the app bundle downloads. On the root path, redirect
+// immediately based on cached Supabase session so slow connections
+// (e.g. India / Safari) don't time out waiting for the JS bundle.
+const instantRootRedirectScript = `(function(){try{
+  if(location.pathname!=='/')return;
+  var hasSession=false;
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k&&k.indexOf('sb-')===0&&k.indexOf('-auth-token')!==-1){
+      var v=localStorage.getItem(k);
+      if(v&&v.indexOf('access_token')!==-1){hasSession=true;break;}
+    }
+  }
+  location.replace(hasSession?'/app':'/auth');
+}catch(e){location.replace('/auth');}})();`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: instantRootRedirectScript }} />
       </head>
       <body>
         {children}
