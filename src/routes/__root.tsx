@@ -7,13 +7,19 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
-import { InstallPrompt } from "@/components/install-prompt";
-import { VersionChecker } from "@/components/version-checker";
+
+// Lazy-loaded so they don't bloat the initial JS bundle on slow networks.
+const InstallPrompt = lazy(() =>
+  import("@/components/install-prompt").then((m) => ({ default: m.InstallPrompt })),
+);
+const VersionChecker = lazy(() =>
+  import("@/components/version-checker").then((m) => ({ default: m.VersionChecker })),
+);
 
 
 function NotFoundComponent() {
