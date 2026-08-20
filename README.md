@@ -1,31 +1,50 @@
 # Trace
 
-Can you build me a simple app - designed for mobile view - I want the following features:
-1. Take photos of my food / upload - and use ai to analyze the picture and calculate roughly the calories of that meal - add it somewhere as a log for that day - it should automatically categorize it lunch breakfast etc based on my current timezone and meal items - i should be able to see my daily calorie count as well as previous history - in day view, week view etc using tables / charts trend lines etc
+A minimal, mobile-first food & weight tracker.
 
-2. Add my weight logs which i will input manually - it should log it for the date logged automatically and i should be able to history view in  using tables / charts trend lines etc
+- Take a photo of a meal (or upload one) and let AI estimate its calories and macros, auto-categorized into breakfast/lunch/dinner based on your timezone.
+- Log daily calories with day/week history views — tables and trend-line charts.
+- Log weight manually, with the same history views.
 
-keep the overall design minimalistic and simple clean - basic black white grey color theme
+Clean black/white/grey design, kept intentionally simple.
 
-This project was built with [Lovable](https://lovable.dev).
+## Stack
 
-**Live app**: https://caltrace.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/eb945599-42b9-420a-9bcf-15aeee31aad9).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- [TanStack Start](https://tanstack.com/start) (React, SSR) + Vite
+- [Supabase](https://supabase.com) for auth, database, and storage
+- [Anthropic Claude](https://www.anthropic.com) for meal-photo analysis
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+You need Node.js (or Bun) and a Supabase project.
 
 ```sh
 git clone <this-repository-url>
-cd <repository-name>
+cd trace
 npm i
+cp .env.example .env   # fill in your Supabase + Anthropic keys
 npm run dev
+```
+
+### Environment variables
+
+See `.env.example`. You'll need:
+
+- `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-side)
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (client-side, exposed to the browser)
+- `ANTHROPIC_API_KEY` (server-side, used for meal-photo analysis and notification copy)
+
+### Database
+
+Schema lives in `supabase/migrations`. Apply them to your Supabase project with the [Supabase CLI](https://supabase.com/docs/guides/cli):
+
+```sh
+supabase link --project-ref <your-project-ref>
+supabase db push
+```
+
+## Build
+
+```sh
+npm run build
 ```

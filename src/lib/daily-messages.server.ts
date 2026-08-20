@@ -1,5 +1,5 @@
 // Server-only helper that generates and caches a daily set of rude/sarcastic
-// reminder messages via Lovable AI. One set per UTC date, shared by all users.
+// reminder messages via Claude. One set per UTC date, shared by all users.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type ReminderSlot = "breakfast" | "lunch" | "dinner" | "weight";
@@ -31,7 +31,7 @@ async function readCached(date: string): Promise<Partial<MsgSet>> {
 }
 
 async function generateViaAi(date: string): Promise<MsgSet | null> {
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
   const systemPrompt = `You write push-notification copy for a calorie tracking app.
@@ -39,7 +39,7 @@ Tone: RUDE, sarcastic, playfully insulting — call the user names (loser, dumba
 Keep it edgy but not slurs, not threats, not body-shaming about weight/appearance, not self-harm.
 Each title must be under 40 chars. Each body under 90 chars.
 Vary the style today (${date}) so it feels fresh — don't reuse common phrasings.
-Return ONLY JSON with this exact shape:
+Return ONLY JSON with this exact shape, no other text:
 {
   "breakfast": { "title": "...", "body": "... mention logging breakfast ..." },
   "lunch":     { "title": "...", "body": "... mention logging lunch ..." },
@@ -48,19 +48,18 @@ Return ONLY JSON with this exact shape:
 }`;
 
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Generate today's set for ${date}.` },
-        ],
-        response_format: { type: "json_object" },
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 512,
+        system: systemPrompt,
+        messages: [{ role: "user", content: `Generate today's set for ${date}.` }],
       }),
     });
     if (!res.ok) {
@@ -68,7 +67,7 @@ Return ONLY JSON with this exact shape:
       return null;
     }
     const json = await res.json();
-    const text: string = json.choices?.[0]?.message?.content ?? "{}";
+    const text: string = json.content?.[0]?.text ?? "{}";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any;
     try {

@@ -7,11 +7,12 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
 // Lazy-loaded so they don't bloat the initial JS bundle on slow networks.
 const InstallPrompt = lazy(() =>
@@ -47,9 +48,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -89,7 +87,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
       { title: "Trace" },
       { name: "description", content: "Log your meals and track your weight with AI-powered calorie estimation from food photos." },
-      { name: "author", content: "Lovable" },
       { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
       { name: "theme-color", content: "#0a0a0a", media: "(prefers-color-scheme: dark)" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -100,11 +97,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Log your meals and track your weight with AI-powered calorie estimation from food photos." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Trace" },
       { name: "twitter:description", content: "Log your meals and track your weight with AI-powered calorie estimation from food photos." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/aec6f1a1-5136-4d33-8c2a-aadfd7ca6130/id-preview-a1a1d6c7--eb945599-42b9-420a-9bcf-15aeee31aad9.lovable.app-1781617180067.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/aec6f1a1-5136-4d33-8c2a-aadfd7ca6130/id-preview-a1a1d6c7--eb945599-42b9-420a-9bcf-15aeee31aad9.lovable.app-1781617180067.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -115,8 +109,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Open the TLS connection to the backend in parallel with HTML/JS
       // download so the first auth/data call doesn't pay handshake latency
       // (big win on slow / high-latency mobile connections).
-      { rel: "preconnect", href: "https://nmxovvlytrlxbmmrqxpp.supabase.co", crossOrigin: "anonymous" },
-      { rel: "dns-prefetch", href: "https://nmxovvlytrlxbmmrqxpp.supabase.co" },
+      ...(supabaseUrl
+        ? [
+            { rel: "preconnect", href: supabaseUrl, crossOrigin: "anonymous" as const },
+            { rel: "dns-prefetch", href: supabaseUrl },
+          ]
+        : []),
     ],
   }),
 
