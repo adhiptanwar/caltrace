@@ -18,8 +18,8 @@ import {
   BarChart, Bar, CartesianGrid, ReferenceLine,
 } from "recharts";
 import { Camera, Plus, Trash2, LogOut, Loader2, Home, BarChart3, Scale, Sun, Moon, ChevronRight, User } from "lucide-react";
-import logoBlack from "@/assets/trace-mark-black.png.asset.json";
-import logoWhite from "@/assets/trace-mark-white.png.asset.json";
+import logoBlack from "@/assets/trace-mark-black.png";
+import logoWhite from "@/assets/trace-mark-white.png";
 import { getProfile } from "@/lib/profile.functions";
 import { calcBMR, calcTDEE, type ActivityLevel } from "@/lib/health-calc";
 import { ageFromBirthDate } from "@/lib/health-calc";
@@ -205,8 +205,8 @@ function AppPage() {
       >
         <div className="mx-auto max-w-xl px-5 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={logoBlack.url} alt="" className="h-6 w-6 object-contain shrink-0 dark:hidden" />
-            <img src={logoWhite.url} alt="" className="h-6 w-6 object-contain shrink-0 hidden dark:block" />
+            <img src={logoBlack} alt="" className="h-6 w-6 object-contain shrink-0 dark:hidden" />
+            <img src={logoWhite} alt="" className="h-6 w-6 object-contain shrink-0 hidden dark:block" />
             <h1 className="text-base font-semibold tracking-tight leading-none">Trace</h1>
           </div>
           <div className="flex items-center gap-1">
